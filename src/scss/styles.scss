@@ -138,7 +138,7 @@ dialog {
     overflow: auto;  
 
     .message {
-        word-wrap: pre-wrap;
+        white-space: pre-wrap;
 
         &.message-system {
             @include bubble;
