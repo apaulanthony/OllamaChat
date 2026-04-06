@@ -221,7 +221,8 @@ class App {
         this.messages.push({ role: 'user', content: text });
 
         // 2. Prepare AI Response UI (Placeholder)
-        const aiMsgDiv = this.addMessageToUI('assistant', '...');
+        const aiMsgDiv = this.addMessageToUI('assistant', '.');
+        aiMsgDiv.classList.add("loading-indicator");
         let fullAiContent = '';
 
         try {
@@ -231,6 +232,7 @@ class App {
             const decoder = new TextDecoder();
             
             aiMsgDiv.textContent = ''; // Clear the '...'
+            aiMsgDiv.classList.remove("loading-indicator");
 
             while (true) {
                 const { done, value } = await reader.read();
@@ -271,15 +273,21 @@ class App {
         }
     }
 
+    // .loading-indicator
+
+    addElementToUI(element) {
+        this.chatWindow.appendChild(element);
+        this.chatWindow.scrollTop = this.chatWindow.scrollHeight;
+        return element;
+    }     
+
     addMessageToUI(role, text) {
         const msgDiv = document.createElement('div');
         msgDiv.className = `message message-${role}`;
         msgDiv.textContent = text;
-        this.chatWindow.appendChild(msgDiv);
-        this.chatWindow.scrollTop = this.chatWindow.scrollHeight;
-        return msgDiv;
+        return addElementToUI(msgDiv);
     }
-
+   
     addReadAloudButton(parentEl) {
         const speakBtn = document.createElement('button');
         speakBtn.innerHTML = '🔊';
