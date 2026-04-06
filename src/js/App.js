@@ -3,11 +3,11 @@ import { OllamaService } from './OllamaService.js';
 import packageConfig from '../../package.json';
 
 class App {
-    constructor() {        
+    constructor() {
         // Load configuration from localStorage or if not found, package.json.
         this.configKey = "config";
-    
-        this.config = {            
+
+        this.config = {
             ...packageConfig.config,
             ...JSON.parse(localStorage.getItem(this.configKey) || "{}")
         };
@@ -16,18 +16,24 @@ class App {
         localStorage.setItem(this.configKey, JSON.stringify(this.config));
 
         this.storage = new StorageService();
-        this.ollama = new OllamaService(this.config.host || packageConfig.config.host);
-        
+        this.ollama = new OllamaService(this.config.baseUrl || packageConfig.config.baseUrl);
+
+        this.chatId = null;
         this.messages = []; // Conversation history
         this.currentModel = this.config.model || packageConfig.config.model;
-        
-        
+
+
         // Speech APIs
         this.recognition = null;
         this.synth = window.speechSynthesis;
         this.isListening = false;
 
         // UI Elements
+        this.newChatBtn = null;
+        this.historyCombo = null;
+        this.clearHistoryBtn = null;
+
+        this.baseUrlInput = null;
         this.optionsFieldset = null;
         this.optionsCheckbox = null;
         this.optionsContainer = null;
@@ -53,17 +59,23 @@ class App {
         this.cacheDOM();
         this.setupSpeechRecognition();
         this.attachEventListeners();
-        this.renderInitialUI();        
+        this.renderInitialUI();
     }
 
     cacheDOM() {
         this.showConfigDialog = document.getElementById('showConfigDialog');
         this.configDialog = document.getElementById('configDialog');
 
+        this.newChatBtn = document.getElementById('new-chat-button');
+        this.historyCombo = document.getElementById('history-combo');
+        this.clearHistoryBtn = document.getElementById('clear-history-button');
+
+        this.baseUrlInput = document.getElementById('options-fieldset');
         this.optionsFieldset = document.getElementById('options-fieldset');
         this.optionsCheckbox = document.getElementById('options-checkbox');
         this.optionsContainer = document.getElementById('options-container');
 
+        this.baseUrlInput = document.getElementById('baseUrl-input');
         this.modelCombo = document.getElementById('model-combo');
         this.autoReadCheckbox = document.getElementById('auto-read-checkbox');
         this.voiceCombo = document.getElementById('voice-combo');
@@ -106,19 +118,23 @@ class App {
         }
     }
 
-    
-
 
     async renderInitialUI() {
         //load config into dialog
         const form = this.configDialog?.querySelector("form");
-        if (form?.elements) {
-            for (const key in this.config) {
-                const input = form.elements.namedItem(key);
-                if (input) {
+        for (const key in this.config) {
+            const input = form?.elements?.namedItem(key);
+            if (input) {
+                if (input.type === "checkbox") {
+                    input.checked = this.config[key];
+                } else {
                     input.value = this.config[key];
                 }
             }
+        }
+
+        if (this.historyCombo) {
+            this.populateChats(this.historyCombo);
         }
 
         this.chatWindow.innerHTML = '';
@@ -131,10 +147,10 @@ class App {
         this.cacheDOM();
 
         if (this.modelCombo) {
-            this.populateModels(this.modelCombo).then(() => this.modelCombo.value = this.currentModel);         
-            this.modelCombo?.addEventListener('change', e  => this.currentModel = e.target.value);
+            this.populateModels(this.modelCombo).then(() => this.modelCombo.value = this.currentModel);
+            this.modelCombo?.addEventListener('change', e => this.currentModel = e.target.value);
         }
-                
+
         if (this.autoReadCheckbox) {
             this.autoReadCheckbox.checked = this.config.autoReadCheckbox;
         }
@@ -148,24 +164,60 @@ class App {
 
     attachEventListeners() {
         this.showConfigDialog?.addEventListener('click', () => {
-            this.configDialog.show();
+            this.configDialog.showModal();
             this.initConfigDialog();
         });
 
         this.configDialog?.addEventListener("close", e => {
-            const form = configDialog.querySelector("form");            
-            localStorage.setItem(this.configKey, JSON.stringify(this.config = {...this.config, ...form.elements}));
+            const config = {
+                ...this.config
+            };
+
+            this.configDialog.querySelectorAll('[name="baseUrl"], [name="model"], [name="autoRead"], [name="voice"]').forEach(input => {
+                config[input.name] = input.type === "checkbox" ? !!input.checked : input.value;
+            })
+
+            this.config = config
+            localStorage.setItem(this.configKey, JSON.stringify(config));
         })
 
         this.optionsContainer && this.optionsCheckbox?.addEventListener('change', e => {
             this.optionsContainer.style.maxHeight = (e.target.checked ? 'none' : '0px');
         });
-        
+
+        this.newChatBtn?.addEventListener('click', () => { this.chatId = null; this.messages = [] });
+        this.historyCombo?.addEventListener('change', async e => {
+            const chat = await this.storage.getRecord(+e.target.value);
+            if (chat) {
+                this.chatId = chat.id || null;
+                this.messages = chat.messages || [];
+
+                // Swap chat history
+                this.chatWindow.innerHTML = '';
+                this.messages.forEach(message => this.addMessageToUI(message.role, message.content));                                
+            }
+        });
+        this.clearHistoryBtn?.addEventListener('click', () => confirm("Are you sure you want to clear the chat?") && this.storage.deleteAllData());
+
         this.sendBtn?.addEventListener('click', () => this.handleSendMessage());
         this.chatInput?.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') this.handleSendMessage();
         });
         this.micBtn?.addEventListener('click', () => this.toggleDictation());
+    }
+
+    async populateChats(chatCombo) {
+        const chats = await this.storage.getAllRunsByDate(true);
+
+        chatCombo.length = 0
+
+        for (const chat of chats) {
+            const option = document.createElement("option");
+            option.value = chat.id.toString();
+            option.textContent = `${new Date(chat.date)} ${chat.messages[0].content}`;
+
+            chatCombo.add(option);
+        }
     }
 
     async populateModels(voiceCombo) {
@@ -213,16 +265,36 @@ class App {
 
     async handleSendMessage() {
         const text = this.chatInput.value.trim();
-        if (!text) return;
+        const images = null;
+        //  await Promise.all(this.fileInput?.files.map(file => new Promise((resolve, reject) => {
+        //         const fr = new FileReader();
+        //         fr.onerror = e => reject(fr.error);
+        //         fr.onloadend = () => resolve(fr.result);
+
+        //         fr.readAsDataURL(file);
+        //     }).then(s => s.substring(s.indexOf(",") + 1)))) ;            
+
+        // if (!text && !images?.length) return;
 
         // 1. Update UI and State for User Message
         this.chatInput.value = '';
         this.addMessageToUI('user', text);
-        this.messages.push({ role: 'user', content: text });
+
+        const message = { role: 'user' };
+        if (text) message.content = text;
+        if (images) message.images = images;
+        this.messages.push(message);
 
         // 2. Prepare AI Response UI (Placeholder)
-        const aiMsgDiv = this.addMessageToUI('assistant', '.');
-        aiMsgDiv.classList.add("loading-indicator");
+        const aiMsgDiv = this.addMessageToUI('assistant');
+        let indicator = aiMsgDiv.appendChild(document.createElement("span"));
+        indicator.classList.add("loading-indicator");
+
+        // Randomly assign a "mood" to the loading animation
+        const moods = ['lunar', 'dice', ''];
+        const randomMood = moods[Math.floor(Math.random() * moods.length)];
+        if (randomMood) indicator.classList.add(randomMood);
+
         let fullAiContent = '';
 
         try {
@@ -230,37 +302,50 @@ class App {
             const stream = await this.ollama.chatStream(this.currentModel, this.messages);
             const reader = stream.getReader();
             const decoder = new TextDecoder();
-            
-            aiMsgDiv.textContent = ''; // Clear the '...'
-            aiMsgDiv.classList.remove("loading-indicator");
+
+            const writeChunk = (content) => {
+                fullAiContent += content;
+
+                if (indicator && fullAiContent) {
+                    indicator.remove();
+                    indicator = null;
+                    aiMsgDiv.textContent = "";
+                }
+
+                aiMsgDiv.textContent = fullAiContent; // Update UI with new chunk
+                this.chatWindow.scrollTop = this.chatWindow.scrollHeight;
+            };
 
             while (true) {
                 const { done, value } = await reader.read();
                 if (done) break;
 
                 const chunk = decoder.decode(value, { stream: true });
-                
+
                 // Ollama sends multiple JSON objects in one chunk sometimes
                 const lines = chunk.split('\n');
                 for (const line of lines) {
                     if (!line.trim()) continue;
                     const json = JSON.parse(line);
                     if (json.message && json.message.content) {
-                        const content = json.message.content;
-                        fullAiContent += content;
-                        aiMsgDiv.textContent = fullAiContent; // Update UI with new chunk
-                        this.chatWindow.scrollTop = this.chatWindow.scrollHeight;
+                        writeChunk(json.message.content);
                     }
                 }
             }
 
             // 4. Finalize AI Message in history
             this.messages.push({ role: 'assistant', content: fullAiContent });
-            
-            // 5. Persist Chat
-            await this.storage.saveRecord({
+
+            // 5. Persist Chat. Keep id if we already have one
+            const chat = Object.assign(this.chatId ? { id: this.chatId } : {}, {
                 sessionName: 'Latest Chat',
                 messages: this.messages
+            });
+
+            this.chatId = await this.storage.saveRecord(chat).then(id => {
+                // Update chat history combo box (doesn't matter if we don't wait)
+                this.populateChats(this.historyCombo).then(() => { this.historyCombo.value = id + ''});
+                return id
             });
 
             // Add Read Aloud button to the completed message
@@ -273,27 +358,25 @@ class App {
         }
     }
 
-    // .loading-indicator
-
     addElementToUI(element) {
         this.chatWindow.appendChild(element);
         this.chatWindow.scrollTop = this.chatWindow.scrollHeight;
         return element;
-    }     
+    }
 
     addMessageToUI(role, text) {
         const msgDiv = document.createElement('div');
         msgDiv.className = `message message-${role}`;
         msgDiv.textContent = text;
-        return addElementToUI(msgDiv);
+        return this.addElementToUI(msgDiv);
     }
-   
+
     addReadAloudButton(parentEl) {
         const speakBtn = document.createElement('button');
         speakBtn.innerHTML = '🔊';
         speakBtn.className = 'tts-button';
         speakBtn.title = 'Read aloud';
-        speakBtn.onclick = () => this.speak(parentEl.textContent); 
+        speakBtn.onclick = () => this.speak(parentEl.textContent);
 
         const stopBtn = document.createElement('button');
         stopBtn.innerHTML = '⏹️';
@@ -305,7 +388,7 @@ class App {
         div.className = "tts-container";
         div.appendChild(speakBtn);
         div.appendChild(stopBtn);
-        
+
         parentEl.insertAdjacentElement('afterend', div);
 
         if (this.autoReadCheckbox.checked) {
@@ -324,3 +407,4 @@ class App {
 
 // Initialize the app
 const app = new App();
+

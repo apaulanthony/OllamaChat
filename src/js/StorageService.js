@@ -158,6 +158,32 @@ export class StorageService {
 
 
     /**
+     * Get all data from IndexedDB, sorted by date
+     * 
+     * @param {boolean} decending
+     * @returns {Promise<array<Run>>}
+     */
+    async getAllRunsByDate(decending, name = this.defaultObjectStoreName) {
+        const db = await this.openDB();
+
+        return new Promise((resolve, reject) => {
+            db.onerror = (event) => reject(event.target.error);
+
+            // Get all runs from the 'runs' object store using "date" index
+            const request = db.transaction([name])
+                .objectStore(name)
+                .index('date')
+                .getAll();
+
+            request.onsuccess = (event) => {
+                const data = event.target.result;
+                resolve(decending ? data.reverse() : data)
+            };
+        });
+    }
+
+
+    /**
      * Clear all runs from IndexedDB, returning a promise that resolves when the operation is complete
      * 
      * @returns {Promise<array<void>>} 

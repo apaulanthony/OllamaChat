@@ -1,13 +1,13 @@
 {
 	"name": "ollamachat",
-	"version": "1.0.5",
+	"version": "1.1.0",
 	"description": "Chatbot interface for ollama",
 	"license": "ISC",
 	"author": "A Paul Anthony",
 	"type": "module",
 	"main": "index.html",
 	"config": {
-		"host": "http://localhost:11434",
+		"baseUrl": "http://localhost:11434/api",
 		"model": "llama3"
 	},
 	"scripts": {

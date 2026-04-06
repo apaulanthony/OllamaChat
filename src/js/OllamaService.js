@@ -4,10 +4,11 @@
  */
 export class OllamaService {
     /**
-     * @param {string} host - The host for the Ollama API (e.g., http://localhost:11434)
+     * @param {string} baseUrl - The host for the Ollama API (e.g., http://localhost:11434/api)
      */
-    constructor(host = "http://localhost:11434") {
-        this.host = new URL(host);
+    constructor(baseUrl = "http://localhost:11434") {
+        // Ensure trailing slash in the baseUrl if it's missing or appending relative paths won't work
+        this.baseUrl = new URL(baseUrl + (!baseUrl.endsWith("/") ? "/":"")); 
     }
 
     /**
@@ -19,7 +20,7 @@ export class OllamaService {
      * @throws {Error} If the network request fails or the response is not OK.
      */
     async chatStream(model, messages) {
-        const response = await fetch( new URL("api/chat", this.host), {
+        const response = await fetch( new URL("chat", this.baseUrl), {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -49,7 +50,7 @@ export class OllamaService {
      * @returns {Promise<Array<object>>} - A list of available model names.
      */
     async listModels() {
-        const response = await fetch(new URL("api/tags", this.host));
+        const response = await fetch(new URL("tags", this.baseUrl));
         if (!response.ok) {
             throw new Error('Failed to fetch models from Ollama');
         }
