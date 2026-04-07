@@ -2,6 +2,7 @@ import packageConfig from '../../package.json';
 import { StorageService } from './StorageService.js'; // Note: Fixed typo from StorageService.js
 import { OllamaService } from './OllamaService.js';
 import {marked} from 'marked';
+import DOMPurify from 'dompurify';
 
 class App {
     constructor() {
@@ -343,7 +344,7 @@ class App {
                 }
 
                 // Update UI with new chunk
-                aiMsgDiv.innerHTML = marked.parse(this.escapeHtml(fullAiContent));
+                aiMsgDiv.innerHTML = DOMPurify.sanitize(marked.parse(fullAiContent));
 
                 this.scrollToBottom();
             };
@@ -390,10 +391,6 @@ class App {
         }
     }
 
-    escapeHtml(text) {
-        return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-    }
-    
     scrollToBottom() {
         this.chatWindow.scrollTop = this.chatWindow.scrollHeight;
     }
@@ -401,7 +398,8 @@ class App {
     addMessageToUI(role, text = '') {
         const msgDiv = document.createElement('div');
         msgDiv.className = `message message-${role}`;
-        msgDiv.innerHTML = text ? marked.parse(this.escapeHtml(text)) : '';
+        msgDiv.innerHTML = text ? DOMPurify.sanitize(marked.parse(text)) : '';
+        
         this.chatWindow.appendChild(msgDiv);
         this.scrollToBottom();
         return msgDiv;
