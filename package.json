@@ -1,6 +1,6 @@
 {
 	"name": "ollamachat",
-	"version": "1.1.1",
+	"version": "1.2.1",
 	"description": "Chatbot interface for ollama",
 	"license": "ISC",
 	"author": "A Paul Anthony",
@@ -16,6 +16,7 @@
 		"generate-icons": "node generate-icons.mjs"
 	},
 	"devDependencies": {
+		"marked": "^18.0.0",
 		"sass": "^1.99.0",
 		"sharp": "^0.34.5",
 		"vite": "^8.0.4"

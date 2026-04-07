@@ -1,6 +1,7 @@
+import packageConfig from '../../package.json';
 import { StorageService } from './StorageService.js'; // Note: Fixed typo from StorageService.js
 import { OllamaService } from './OllamaService.js';
-import packageConfig from '../../package.json';
+import {marked} from 'marked';
 
 class App {
     constructor() {
@@ -66,7 +67,6 @@ class App {
         this.showConfigDialog = document.getElementById('showConfigDialog');
         this.configDialog = document.getElementById('configDialog');
 
-        this.newChatBtn = document.getElementById('new-chat-button');
         this.historyCombo = document.getElementById('history-combo');
         this.clearHistoryBtn = document.getElementById('clear-history-button');
 
@@ -185,9 +185,8 @@ class App {
             this.optionsContainer.style.maxHeight = (e.target.checked ? 'none' : '0px');
         });
 
-        this.newChatBtn?.addEventListener('click', () => { this.chatId = null; this.messages = [] });
         this.historyCombo?.addEventListener('change', async e => {
-            const chat = await this.storage.getRecord(+e.target.value);
+            const chat = await this.storage.getRecord(+e.target.value) || {};
             if (chat) {
                 this.chatId = chat.id || null;
                 this.messages = chat.messages || [];
@@ -210,6 +209,11 @@ class App {
         const chats = await this.storage.getAllRunsByDate(true);
 
         chatCombo.length = 0
+        
+        const option = document.createElement("option");
+        option.textContent = " - New - "
+        option.value = '0';
+        chatCombo.add(option);
 
         for (const chat of chats) {
             const option = document.createElement("option");
@@ -235,19 +239,46 @@ class App {
     async populateVoices(modelCombo) {
         const voices = window.speechSynthesis.getVoices();
 
+        // Sort by language, then name
+        voices.sort((a, b) => {
+            if (a.lang > b.lang) return 1
+            if (a.lang < b.lang) return -1
+
+            if (a.name > b.name) return 1
+            if (a.name < b.name) return -1
+
+            return 0
+        });
+
+        // Create a map of voices grouped by language for easier access
+        const groupedVoices = {};
+        voices.forEach(v => (groupedVoices[v.lang] = [...(groupedVoices[v.lang] || []), v]));
+
+        debugger;
+
         modelCombo.length = 0;
 
-        for (const voice of voices) {
-            const option = document.createElement("option");
-            option.textContent = `${voice.name} (${voice.lang})`;
-            option.value = voice.name;
+        for (const group in groupedVoices) {
+            const optgroup = document.createElement("optgroup");
+            optgroup.label = groupedVoices[group][0].lang;            
+            
+            for (const voice of groupedVoices[group]) {
+                const option = document.createElement("option");
+                option.textContent = `${voice.name} (${voice.lang})`;
+                option.value = voice.name;
 
-            if (voice.default) {
-                option.selected = true;
-                option.textContent += " — DEFAULT";
+                if (voice.default) {
+                    option.selected = true;
+                    option.textContent += " — DEFAULT";
+                }
+
+                optgroup.appendChild(option);
             }
 
-            modelCombo.add(option);
+            // Skip adding empty optgroups
+            if (optgroup.childElementCount) {
+                modelCombo.add(optgroup);
+            }
         }
     }
 
@@ -309,11 +340,12 @@ class App {
                 if (indicator && fullAiContent) {
                     indicator.remove();
                     indicator = null;
-                    aiMsgDiv.textContent = "";
                 }
 
-                aiMsgDiv.textContent = fullAiContent; // Update UI with new chunk
-                this.chatWindow.scrollTop = this.chatWindow.scrollHeight;
+                // Update UI with new chunk
+                aiMsgDiv.innerHTML = marked.parse(this.escapeHtml(fullAiContent));
+
+                this.scrollToBottom();
             };
 
             while (true) {
@@ -358,17 +390,21 @@ class App {
         }
     }
 
-    addElementToUI(element) {
-        this.chatWindow.appendChild(element);
+    escapeHtml(text) {
+        return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+    
+    scrollToBottom() {
         this.chatWindow.scrollTop = this.chatWindow.scrollHeight;
-        return element;
     }
 
-    addMessageToUI(role, text) {
+    addMessageToUI(role, text = '') {
         const msgDiv = document.createElement('div');
         msgDiv.className = `message message-${role}`;
-        msgDiv.textContent = text;
-        return this.addElementToUI(msgDiv);
+        msgDiv.innerHTML = text ? marked.parse(this.escapeHtml(text)) : '';
+        this.chatWindow.appendChild(msgDiv);
+        this.scrollToBottom();
+        return msgDiv;
     }
 
     addReadAloudButton(parentEl) {
@@ -407,4 +443,3 @@ class App {
 
 // Initialize the app
 const app = new App();
-

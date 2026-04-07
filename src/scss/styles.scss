@@ -138,7 +138,25 @@ dialog {
     overflow: auto;  
 
     .message {
-        white-space: pre-wrap;
+        // Add styles for Markdown generares elements
+        p {
+            margin: 0 0 0.5em 0;
+        }
+        ul, ol {
+            margin: 0 0 0.5em 1.5em;
+        }
+        code {
+            background-color: rgba(0,0,0,0.1);
+            padding: 0.2em 0.4em;
+            border-radius: 3px;
+            font-family: monospace;
+        }
+        pre {
+            background-color: #f4f4f4;
+            padding: 10px;
+            overflow-x: auto;
+            border-radius: 4px;
+        }
 
         &.message-system {
             @include bubble;
