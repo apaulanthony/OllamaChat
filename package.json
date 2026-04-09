@@ -1,6 +1,6 @@
 {
 	"name": "ollamachat",
-	"version": "1.2.4",
+	"version": "1.2.5",
 	"description": "Chatbot interface for ollama",
 	"license": "ISC",
 	"author": "A Paul Anthony",
@@ -17,6 +17,7 @@
 	},
 	"devDependencies": {
 		"dompurify": "^3.3.3",
+		"katex": "^0.16.45",
 		"marked": "^18.0.0",
 		"sass": "^1.99.0",
 		"sharp": "^0.34.5",

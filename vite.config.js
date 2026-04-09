@@ -17,14 +17,16 @@ export default defineConfig({
 		rolldownOptions: {
 			input: ['index.html', 'src/js/sw.js'],
 			output: {
-				// Explicitly define the sw.js output file name. It is a special case that needs to keep its name and location fixed
 				entryFileNames: (chunkInfo) => {
+					// Explicitly define the sw.js output file name. It is a special case that needs to keep its name and location fixed
 					if (chunkInfo.name === 'sw') {
 						return 'sw.js';
 					}
 					// Default pattern for other files
 					return 'assets/[name]-[hash].js';
 				}
+				// Just in case, here's how to remove the hash from all assets
+				//assetFileNames : 'assets/[name].[ext]'
 			}
 		}
 	}

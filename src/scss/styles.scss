@@ -119,7 +119,7 @@ dialog {
 }
 
 
-@keyframes task-progress {
+@keyframes dice-roll {
     0%   { content: '⚀'; } /* 1 */
     25%  { content: '⚁'; } /* 2 */
     50%  { content: '⚂'; } /* 3 */
@@ -127,9 +127,9 @@ dialog {
     100% { content: '⚄'; } /* 5 */
 }
 
-.status-indicator.dice::after {
+.loading-indicator.dice::after {
     content: '⚀';
-    animation: task-progress 2s infinite steps(5);
+    animation: dice-roll 2s infinite steps(5);
 }
 
 

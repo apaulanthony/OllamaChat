@@ -1,5 +1,7 @@
 import { marked } from 'marked';
 import DOMPurify from 'dompurify';
+import 'katex/dist/katex.css';
+import renderMathInElement from 'katex/contrib/auto-render';
 
 /**
  *  UIController.js
@@ -129,7 +131,7 @@ export class UIController {
 
                 // Swap chat history
                 this.chatWindow.innerHTML = '';
-                chat.messages?.forEach(message => this.addMessage(message.role, message.content));
+                chat.messages?.forEach((message, i) => this.addMessage(message.role, message.content, chat.id, i));
             });
         }
 
@@ -177,7 +179,8 @@ export class UIController {
 
 
     async renderInitialUI() {
-        this.addMessage('system', 'Welcome to OllamaChat! Ask me anything.');
+        // Use 0 for system chat (invalid as a real chatId) and calculate a message ID based upon a timestamp.
+        this.addMessage('system', 'Welcome to OllamaChat! Ask me anything.', 0, Math.floor(Date.now() / 1000));
 
         this.initConfigDialog();
     }
@@ -364,25 +367,47 @@ export class UIController {
     }
 
 
-    updateMessage(element, content, className = null) {
+    updateMessage(bubbleId, content, className = null) {
+        const element = document.getElementById(bubbleId);
         element.innerHTML = content ? this.prepareOutput(content) : "";
+
         if (className) {
             element.classList.add(className);
         }
+
+        try {
+            renderMathInElement(element, {
+                delimiters: [
+                    { left: '$$', right: '$$', display: true },   // Block math
+                    { left: '$', right: '$', display: false },    // Inline math
+                    { left: '\\(', right: '\\)', display: false }, // LaTeX inline
+                    { left: '\\[', right: '\\]', display: true }  // LaTeX block
+                ],
+                throwOnError: false // Prevents the whole app from crashing if there's a typo in math
+            });
+        } catch (err) {
+            throw new Error("KaTeX rendering error:", { casuse: err });
+        }
+
         this.scrollToBottom();
     }
 
-    addMessage(role, text = '') {
+    addMessage(role, text = '', chatId, messageIndex) {
+        const bubbleId = `chat_${chatId}_msg_${messageIndex}`;
         const element = document.createElement('div');
         element.className = `message message-${role}`;
+        element.id = bubbleId;
 
-        this.updateMessage(this.chatWindow.appendChild(element), text);
+        this.chatWindow.appendChild(element)
 
-        return element;
+        this.updateMessage(bubbleId, text);
+
+        return bubbleId;
     }
 
-    addIndicatorMessage(role) {
-        const element = this.addMessage(role, '');
+    addIndicatorMessage(role, chatId, messageIndex) {
+        const bubbleId = this.addMessage(role, '', chatId, messageIndex);
+        const element = document.getElementById(bubbleId);
 
         const indicator = element.appendChild(document.createElement("span"));
         indicator.classList.add("loading-indicator");
@@ -392,7 +417,7 @@ export class UIController {
         const randomMood = moods[Math.floor(Math.random() * moods.length)];
         if (randomMood) indicator.classList.add(randomMood);
 
-        return element
+        return bubbleId
     }
 
 
@@ -443,12 +468,14 @@ export class UIController {
     }
 
     // Add Read Aloud button to the completed message
-    finishMessage(parentEl) {
+    finishMessage(bubbleId) {
+        const element = document.getElementById(bubbleId);
+
         const speakBtn = document.createElement('button');
         speakBtn.innerHTML = '🔊';
         speakBtn.className = 'tts-button';
         speakBtn.title = 'Read aloud';
-        speakBtn.onclick = () => this.speakStart(parentEl.textContent);
+        speakBtn.onclick = () => this.speakStart(element.textContent);
 
         const stopBtn = document.createElement('button');
         stopBtn.innerHTML = '⏹️';
@@ -462,10 +489,10 @@ export class UIController {
         div.appendChild(speakBtn);
         div.appendChild(stopBtn);
 
-        parentEl.insertAdjacentElement('afterend', div);
+        element.insertAdjacentElement('afterend', div);
 
         if (this.getConfig().checked) {
-            this.speakBtn.click();
+            this.speakStart(element.textContent);
         }
     }
 

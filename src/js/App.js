@@ -86,16 +86,28 @@ class App {
 
         // if (!text && !images?.length) return;
 
-        // 1. Update UI and State for User Message
-        this.ui.addMessage('user', text);
-
         const message = { role: 'user' };
         if (text) message.content = text;
         if (images) message.images = images;
+
         this.messages.push(message);
 
-        // 2. Prepare AI Response UI (Placeholder)        
-        const bubbleId = this.ui.addIndicatorMessage('assistant');
+        const chat = Object.assign(this.chatId ? { id: this.chatId } : {}, {
+            sessionName: this.messages[0], // TODO: Get AI to create summary of conversation?            
+            messages: this.messages
+        });
+
+        this.chatId = chat.id = await this.storage.saveRecord(chat);;
+            
+        // Update UI with User Message
+        this.ui.addMessage('user', text, chat.id, this.messages.length);
+
+        // Update chat history combo box (doesn't matter if we don't wait)
+        this.ui.populateChats(chat.id + '');
+
+
+        // . Preemptively bump the message counter by 1 and create a placeholder for the AI response
+        const bubbleId = this.ui.addIndicatorMessage('assistant', chat.id, (this.messages.length + 1));
         
         try {            
             // 3. Stream from Ollama
@@ -121,20 +133,13 @@ class App {
                     }
                 }
             }
-
-            // 4. Finalize AI Message in history
+            
+            // Satisfy the bumped counter with reponse from LLM
             this.messages.push({ role: 'assistant', content: fullAiContent });
 
-            // 5. Persist Chat. Keep id if we already have one
-            const chat = Object.assign(this.chatId ? { id: this.chatId } : {}, {
-                sessionName: 'Latest Chat',
+            this.storage.saveRecord({
+                ...chat,
                 messages: this.messages
-            });
-
-            this.chatId = await this.storage.saveRecord(chat).then(id => {
-                // Update chat history combo box (doesn't matter if we don't wait)
-                this.ui.populateChats(id + '');
-                return id
             });
 
             // 6. Update UI with final message
