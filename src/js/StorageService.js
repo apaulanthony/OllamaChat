@@ -3,14 +3,43 @@
  * Responsibility: Stores and retrieves data from local storage
  */
 export class StorageService {
-    constructor(name = __APP_NAME__) {
-        this.name = name;
-        this.defaultObjectStoreName = 'session'
+    /**
+     * Constructor for StorageService class
+     * 
+     * @param {*} dbName
+     * @param {*} defaultObjectStore
+     */
+    constructor(dbName = __APP_NAME__, defaultObjectStore = 'session') {
+        this.name = dbName;
+        this.defaultObjectStore = defaultObjectStore;
+
+        this.db = null; // Will hold the Promise from openDB()
     }
 
-    init() {
+    async init() {
         // Convert the sematic version number from package.json to a 32-bit integer
         this.version = this.convertVersionToInt32(__APP_VERSION__);
+
+        // cached DB connection via promise
+        this.db = this.openDB();
+    }
+
+    /**
+     * Private helper to get the object store from a transaction
+     * 
+     * @param {string} storeName 
+     * @param {IDBTransactionMode} mode 
+     * @returns {IDBObjectStore}
+     */
+    async _getStore(storeName, mode = 'readonly') {
+        const db = await this.db;
+
+        return new Promise((resolve, reject) => {
+            const transaction = db.transaction([storeName], mode)
+            transaction.onerror = (event) => reject(event.target.error);
+
+            resolve(transaction.objectStore(storeName));
+        })
     }
 
     /**
@@ -35,7 +64,7 @@ export class StorageService {
         // 2. Reverse them so index 0 = Patch, 1 = Minor, 2 = Major.        
         const numericParts = parts.map(part => {
             const val = parseInt(part, 10);
-            
+
             if (isNaN(val) || val >= 1024) {
                 throw new Error(`Invalid version component: ${part}`);
             }
@@ -55,22 +84,24 @@ export class StorageService {
      * @returns {Promise<IDBDatabase>}
      */
     async openDB() {
-        return new Promise((resolve, reject) => {	
+        return new Promise((resolve, reject) => {
             const request = indexedDB.open(this.name, this.version);
-            request.onerror = (event) => reject(event.target.error);
 
             request.onupgradeneeded = (event) => {
-                const name = this.defaultObjectStoreName;
                 const db = event.target.result;
                 const transaction = event.target.transaction;
+                const storeName = this.defaultObjectStore;
 
-                const runsStore = db.objectStoreNames.contains(name) ? transaction.objectStore(name) : db.createObjectStore(name, { keyPath: 'id', autoIncrement: true });
+                const runsStore = db.objectStoreNames.contains(storeName)
+                    ? transaction.objectStore(storeName)
+                    : db.createObjectStore(storeName, { keyPath: 'id', autoIncrement: true });
 
                 if (!runsStore.indexNames.contains('date')) {
                     runsStore.createIndex('date', 'date', { unique: false });
                 }
             };
 
+            request.onerror = (event) => reject(event.target.error);
             request.onsuccess = (event) => resolve(event.target.result);
         });
     }
@@ -82,17 +113,15 @@ export class StorageService {
      * @param {object} run 
      * @returns 
      */
-    async saveRecord(data, name = this.defaultObjectStoreName) {
-        const db = await this.openDB();
+    async saveRecord(data, name = this.defaultObjectStore) {
+        const db = await this.db;
 
-        return new Promise(async (resolve, reject) => {
-            db.onerror = (event) => reject(event.target.error);
+        return new Promise((resolve, reject) => {
+            const transaction = db.transaction(name, 'readwrite');
+            transaction.onerror = event => reject(event.target.error);
 
-            const request = db.transaction([name], 'readwrite')
-                .objectStore(name)
-                .put({ date: Date.now(), ...data });
-
-            request.onsuccess = (event) => resolve(event.target.result);
+            const request = transaction.objectStore(name).put({ ...data, date: Date.now() });
+            request.onsuccess = event => resolve(event.target.result);
         });
     }
 
@@ -100,19 +129,17 @@ export class StorageService {
      * Get a run by ID from IndexedDB
      * 
      * @param {BigInteger} id 
-     * @returns {Promise<Run>} 
+     * @returns {Promise<object>} 
      */
-    async getRecord(id, name = this.defaultObjectStoreName) {
-        const db = await this.openDB();
+    async getRecord(id, name = this.defaultObjectStore) {
+        const db = await this.db;
 
-        return new Promise(async (resolve, reject) => {
-            db.onerror = (event) => reject(event.target.error);
+        return new Promise((resolve, reject) => {
+            const transaction = db.transaction(name);
+            transaction.onerror = event => reject(event.target.error);
 
-            const request = db.transaction([name], 'readonly')
-                .objectStore(name)
-                .get(id)
-
-            request.onsuccess = (event) => resolve(event.target.result);
+            const request = transaction.objectStore(name).get(id);
+            request.onsuccess = event => resolve(event.target.result);
         });
     }
 
@@ -122,61 +149,60 @@ export class StorageService {
      * @param {BigInteger} id 
      * @returns {Promise<void>} resolves when the operation is complete
      */
-    async deleteRecord(id, name = this.defaultObjectStoreName) {
-        const db = await this.openDB();
+    async deleteRecord(id, name = this.defaultObjectStore) {
+        const db = await this.db;
 
         return new Promise((resolve, reject) => {
-            db.onerror = (event) => reject(event.target.error);
+            const transaction = db.transaction(name, 'readwrite');
+            transaction.onerror = event => reject(event.target.error);
 
-            const request = db.transaction([name], 'readwrite')
-                .objectStore(name)
-                .delete(id);
-
-            request.onsuccess = (event) => resolve(event.target.result);
+            const request = transaction.objectStore(name).delete(id);
+            request.onsuccess = event => resolve(event.target.result);
         });
     }
 
     /**
      * Get all runs from IndexedDB, returning a promise that resolves to an array of run objects
      * 
-     * @returns {Promise<array<Run>>} 
+     * @returns {Promise<Array<object>>} 
      */
-    async getAllData(name = this.defaultObjectStoreName) {
-        const db = await this.openDB();
+    async getAllData(name = this.defaultObjectStore) {
+        const db = await this.db;
 
         return new Promise((resolve, reject) => {
-            db.onerror = (event) => reject(event.target.error);
+            const transaction = db.transaction(name, 'readwrite');
+            transaction.onerror = event => reject(event.target.error);
 
-            const request = db.transaction([name])
-                .objectStore(name)
-                .getAll();
-
-            request.onsuccess = (event) => resolve(event.target.result);
+            const request = transaction.objectStore(name).getAll();
+            request.onsuccess = event => resolve(event.target.result);
         });
     }
 
 
     /**
-     * Get all data from IndexedDB, sorted by date
+     * Get all data from IndexedDB, sorted by date. 
      * 
-     * @param {boolean} decending
-     * @returns {Promise<array<Run>>}
+     * https://developer.mozilla.org/en-US/docs/Web/API/IDBIndex/getAll#browser_compatibility
+     *
+     * FF doesn't support "parameter by object", so no native "direction". Fortunately we're getting
+     * the whole set so the soluion is simple; Array.reverse() (It would be fiddlier if data
+     * were fetched in pages to calculate offsets and then fetching the pages in reverse order).
+     * 
+     * @param {boolean} descending
+     * @returns {Promise<Array<object>>}
      */
-    async getAllRunsByDate(decending, name = this.defaultObjectStoreName) {
-        const db = await this.openDB();
+    async getAllDataByDate(descending, name = this.defaultObjectStore) {
+        const db = await this.db;
 
         return new Promise((resolve, reject) => {
-            db.onerror = (event) => reject(event.target.error);
+            const transaction = db.transaction(name);
+            transaction.onerror = event => reject(event.target.error);
 
-            // Get all runs from the 'runs' object store using "date" index
-            const request = db.transaction([name])
-                .objectStore(name)
-                .index('date')
-                .getAll();
-
-            request.onsuccess = (event) => {
+            // Get all data from the objectstore via the "date" index
+            const request = transaction.objectStore(name).index('date').getAll();
+            request.onsuccess = event => {
                 const data = event.target.result;
-                resolve(decending ? data.reverse() : data)
+                resolve(descending ? data.reverse() : data)
             };
         });
     }
@@ -187,17 +213,58 @@ export class StorageService {
      * 
      * @returns {Promise<array<void>>} 
      */
-    async deleteAllData(name = this.defaultObjectStoreName) {
-        const db = await this.openDB();
+    async deleteAllData(name = this.defaultObjectStore) {
+        const db = await this.db;
 
         return new Promise((resolve, reject) => {
-            db.onerror = (event) => reject(event.target.error);
+            const transaction = db.transaction(name, "readwrite");
+            transaction.onerror = event => reject(event.target.error);
 
-            const request = db.transaction([name], 'readwrite')
-                .objectStore(name)
-                .clear();
+            const request = transaction.objectStore(name).clear();
+            request.onsuccess = event => resolve(event.target.result);;
+        });
+    }
 
-            request.onsuccess = (event) => resolve(event.target.result);
+
+    /**
+     * Exports all data from a specific object store as a JSON string.
+     * 
+     * @param {string} name 
+     * @returns {Promise<string>} JSON string of all records
+     */
+    async exportData(name = this.defaultObjectStore) {
+        const data = await this.getAllData(name);
+
+        return JSON.stringify(data);
+    }
+
+    /**
+     * Imports data from a JSON string into a specific object store.
+     * 
+     * @param {string} jsonString 
+     * @param {string} name 
+     * @returns {Promise<void>}
+     */
+    async importData(jsonString, name = this.defaultObjectStore) {
+        const data = JSON.parse(jsonString);
+        if (!Array.isArray(data)) throw new Error("Import data must be an array");
+
+        const db = await this.db;
+
+        return new Promise((resolve, reject) => {
+            const transaction = db.transaction([name], 'readwrite')
+            transaction.onerror = () => reject(transaction.error);
+            transaction.oncomplete = () => resolve();
+
+            const store = transaction.objectStore(name);
+
+            data.forEach(record => {
+                // We use put() to ensure that if an ID already exists, it is updated
+                // rather than creating duplicates, maintaining integrity.
+                // Ignore the IDBRequest return value - use parent transaction to catch
+                // any errors and return the promise when done.
+                store.put({ date: Date.now(), ...record });
+            });
         });
     }
 }

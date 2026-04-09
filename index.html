@@ -11,39 +11,51 @@
 		<link rel="stylesheet" href="src/scss/styles.scss" />
 		<script type="module" src="src/js/App.js" defer></script>
 	</head>
-	<body class="chat-container">
+	<body>
 		<header>
 			<h1>🦙 OllamaChat</h1>
 		</header>
 
-        <button id="showConfigDialog">Configuration</button>
+		<div>
+			<button id="showConfigDialog">Configuration</button>
+	
+			<fieldset>
+				<legend>Chat History</legend>
 
-		<fieldset>
-			<legend>Chat History</legend>
-			<select id="history-combo"></select>
-			<button id="clear-history-button">Clear All</button>
-		</fieldset>
-
-        <dialog id="configDialog" closedby="closerequest">
-            <form method="dialog">
-                <fieldset class="options-container">
-					<label>Host: <input type="text" id="baseUrl-input" name="baseUrl" value="http://localhost:11434/ap"></label>
-                    <label>Models <select id="model-combo" name="model"></select></label>
-                    <label>Auto read responses <input type="checkbox" id="auto-read-checkbox" name="autoRead"></label>
-                    <label>Voices <select id="voice-combo" name="voice"></select></label>
-                </fieldset>    
-                <button>Close</button>
-            </form>
-        </dialog>			
-		
-		<div id="chat-window" class="chat-window">
-			<!-- Messages will appear here -->
+				<label>Continue chat sesion <select id="history-combo"></select></label>				
+				<button id="clear-history-button">Clear All</button>
+				<div>
+					<div>
+						<label>Import history <input id="import-history" type="file"></label>
+						<button id="import-history-button">Import</button>
+					</div>
+					<button id="export-history-button">Export All</button>
+				</div>
+			</fieldset>
+	
+			<dialog id="configDialog" closedby="closerequest">
+				<form method="dialog">
+					<fieldset class="options-container">
+						<label>Host: <input type="text" id="baseUrl-input" name="baseUrl" value="http://localhost:11434/ap"></label>
+						<label>Models <select id="model-combo" name="model"></select></label>
+						<label>Auto read responses <input type="checkbox" id="auto-read-checkbox" name="autoRead"></label>
+						<label>Voices <select id="voice-combo" name="voice"></select></label>
+					</fieldset>    
+					<button>Close</button>
+				</form>
+			</dialog>			
 		</div>
-
-		<div class="input-area">
-			<button id="mic-btn" title="Dictate">🎤</button>
-			<textarea type="text" id="chat-input" placeholder="Type a message..."></textarea>
-			<button id="send-btn">Send</button>
-		</div>	
+		
+		<div class="chat-container">
+			<div id="chat-window" class="chat-window">
+				<!-- Messages will appear here -->
+			</div>
+	
+			<div class="input-area">
+				<button id="mic-btn" title="Dictate">🎤</button>
+				<textarea type="text" id="chat-input" placeholder="Type a message..."></textarea>
+				<button id="send-btn">Send</button>
+			</div>	
+		</div>
 	</body>
 </html>
