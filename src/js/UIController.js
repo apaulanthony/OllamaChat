@@ -93,7 +93,6 @@ export class UIController {
             throw Error("UIController.handleSendMessage is not defined. Please define it in your UI");
         }
 
-
         this.configDialog = document.getElementById('configDialog');
         this.configDialog.addEventListener("close", () => {
             const config = {
@@ -195,6 +194,8 @@ export class UIController {
 
         this.micBtn = document.getElementById('mic-btn');
         this.micBtn.addEventListener('click', () => this.toggleDictation());
+
+        this.setupSpeechRecognition();
 
         // Use 0 for system chat (invalid as a real chatId) and calculate a message ID based upon a timestamp.
         this.addMessage('system', 'Welcome to OllamaChat! Ask me anything.', 0, Math.floor(Date.now() / 1000));

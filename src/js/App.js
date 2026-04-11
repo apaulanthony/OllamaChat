@@ -16,7 +16,7 @@ class App {
 
         this.storage = new StorageService();
         this.ui = new UIController();
-        this.llm = new OpenAiService(this.configKey.baseUrl);
+        this.llm = new OpenAiService(this.config.baseUrl);
 
         this.chat = {
             //id: null,
@@ -130,7 +130,8 @@ class App {
 
         try {
             // 3. Stream from llm
-            const stream = await this.llm.chatStream(this.getConfig().model, chat.messages);
+            const config = this.getConfig();
+            const stream = await this.llm.chatStream(config.model, chat.messages, config.temperature);
             const reader = stream.getReader();
             const decoder = new TextDecoder();
 
