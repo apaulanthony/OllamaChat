@@ -12,11 +12,11 @@
 		<script type="module" src="src/js/App.js" defer></script>
 	</head>
 	<body>
-		<header>
-			<h1>🦙 OllamaChat</h1>
-		</header>
+		<div class="header-container">
+			<header>
+				<h1>🦙 OllamaChat</h1>
+			</header>
 
-		<div>
 			<button id="showConfigDialog">Configuration</button>
 	
 			<fieldset>
@@ -52,13 +52,13 @@
 		<div class="chat-container">
 			<div id="chat-window" class="chat-window">
 				<!-- Messages will appear here -->
-			</div>
-	
+			</div>	
+
 			<div class="input-area">
 				<button id="mic-btn" title="Dictate">🎤</button>
 				<textarea type="text" id="chat-input" placeholder="Type a message..."></textarea>
 				<button id="send-btn">Send</button>
-			</div>	
+			</div>		
 		</div>
 	</body>
 </html>

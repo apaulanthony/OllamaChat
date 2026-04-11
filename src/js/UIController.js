@@ -399,7 +399,7 @@ export class UIController {
         indicator.classList.add("loading-indicator");
 
         // Randomly assign a "mood" to the loading animation
-        const moods = ['lunar', 'dice', ''];
+        const moods = ['globe', 'dice', 'lunar', 'weather-1', 'weather-2', 'clocks', ''];
         const randomMood = moods[Math.floor(Math.random() * moods.length)];
         if (randomMood) indicator.classList.add(randomMood);
 

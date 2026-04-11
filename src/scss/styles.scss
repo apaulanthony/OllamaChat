@@ -1,3 +1,21 @@
+html, body {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    overflow: hidden; /* Prevents the entire page from scrolling */
+}
+
+body {
+    display: flex;
+    flex-direction: column; /* Stacks Header, ChatContainer, and Input vertically */
+    font-family: sans-serif;
+}
+
+.header-container {
+    flex-shrink: 0; /* Prevents header from being squished */
+    padding: 1em;
+}
+
 dialog {
     margin: auto;
     background-color: #fff;    
@@ -104,13 +122,27 @@ dialog {
 }
 
 
+@keyframes globe-animation {
+    0%   { content: '🌍'; }
+    33%  { content: '🌎'; }
+    66%  { content: '🌏'; }
+}
+
+.loading-indicator.globe::after {
+    content: ''; /* Start empty */
+    animation: globe-animation 2s steps(1) infinite;
+}
+
+
 @keyframes lunar-cycle {
-    0%   { content: '🌑'; }
-    20%  { content: '🌒'; }
-    40%  { content: '🌓'; }
-    60%  { content: '🌔'; }
-    80%  { content: '🌕'; }
-    100% { content: '🌑'; }
+    0%   { content: '🌑' ; } /* 1 New Moon (0%) */    
+    12%  { content: '🌒' ; } /* 2 Waxing Crescent */
+    25%  { content: '🌓' ; } /* 3 First Quarter */
+    37%  { content: '🌔' ; } /* 4 Waxing Gibbous */
+    50%  { content: '🌕' ; } /* 5 Full Moon (50%) */
+    63%  { content: '🌖' ; } /* 6 Waning Gibbous */
+    87%  { content: '🌗' ; } /* 7 Last Quarter */
+    100% { content: '🌘' ; } /* 8 Waning Crescent */     
 }
 
 .loading-indicator.lunar::after {
@@ -121,21 +153,92 @@ dialog {
 
 @keyframes dice-roll {
     0%   { content: '⚀'; } /* 1 */
-    25%  { content: '⚁'; } /* 2 */
-    50%  { content: '⚂'; } /* 3 */
-    75%  { content: '⚃'; } /* 4 */
-    100% { content: '⚄'; } /* 5 */
+    20%  { content: '⚁'; } /* 2 */
+    40%  { content: '⚂'; } /* 3 */
+    60%  { content: '⚃'; } /* 4 */
+    80%  { content: '⚄'; } /* 5 */
+    100% { content: '⚅'; } /* 6 */
+
 }
 
 .loading-indicator.dice::after {
     content: '⚀';
-    animation: dice-roll 2s infinite steps(5);
+    animation: dice-roll 3s infinite steps(6);
 }
 
 
+@keyframes weather-1-cycle {
+    0%   { content: '🌣'; } /* 1 */
+    10%  { content: '🌤'; } /* 2 */
+    20%  { content: '🌦'; } /* 3 */
+    30%  { content: '🌧'; } /* 4 */
+    40%  { content: '🌧'; } /* 5 */
+    50%  { content: '🌩'; } /* 6 */
+    60%  { content: '🌩'; } /* 7 */
+    70%  { content: '🌪'; } /* 8 */
+    80%  { content: '🌫'; } /* 9 */
+    90%  { content: '❄️'; } /* 10 */
+    100% { content: '🌢'; } /* 11 */
+}
+
+.loading-indicator.weather-1::after {
+    content: '🌣';
+    animation: weather-1-cycle 5s infinite steps(10);
+}
+
+@keyframes weather-2-cycle {
+    0%  { content: '☀️'; } /* 1 */
+    10% { content: '⛅'; } /* 2 */
+    20%  { content: '🌦️'; } /* 3 */
+    30%  { content: '🌧️'; } /* 4 */
+    40%  { content: '🌨️'; } /* 5 */
+    50%  { content: '⛈️'; } /* 6 */
+    60%  { content: '🌩️'; } /* 7 */
+    70%  { content: '🌪️'; } /* 8 */
+    80%  { content: '🌫️'; } /* 9 */
+    90%  { content: '❄️'; } /* 10 */
+    100% { content: '💧'; } /* 11 */    
+}
+
+.loading-indicator.weather-2::after {
+    content: '☀️';
+    animation: weather-2-cycle 5s infinite steps(10);
+}
+
+
+@keyframes clocks-cycle {
+    0%  { content: '🕛'; } /* 1 */
+    9%  { content: '🕐'; } /* 2 */
+    18% { content: '🕑'; } /* 3 */
+    27% { content: '🕒'; } /* 4 */
+    36% { content: '🕓'; } /* 5 */
+    45% { content: '🕔'; } /* 6 */
+    54% { content: '🕕'; } /* 7 */
+    63% { content: '🕖'; } /* 8 */
+    72% { content: '🕗'; } /* 9 */
+    81% { content: '🕘'; } /* 10 */
+    90% { content: '🕙'; } /* 11 */
+    99% { content: '🕚'; } /* 12 */
+}
+
+.loading-indicator.clocks::after {
+    content: '🌣';
+    animation: clocks-cycle 6s infinite linear;
+}
+
+
+.chat-container {
+    flex: 1;          /* Grows to fill all available space between header and bottom */
+    display: flex;    /* Makes the container itself a flexbox */
+    flex-direction: column; 
+    overflow: hidden; /* Ensures children don't leak out */
+    min-height: 0;    /* IMPORTANT: Allows flex child to shrink below content size */
+}
+
 .chat-window {
-    margin: 1em;        
-    overflow: auto;  
+    flex: 1;          /* Fills the space between header and input-area */
+    overflow-y: auto; /* The vertical scrollbar appears here! */
+    margin: 1em;    
 
     .message {
         // Add styles for Markdown generares elements
@@ -186,11 +289,13 @@ dialog {
 }
 
 .input-area {
+    flex-shrink: 0;   /* Prevents input area from being squished */
     margin: 1em;
-    margin-top: auto;
+    margin-top: auto; /* Pushes it to the bottom of the flex container */
     
     textarea {
         width: 100%;
         height: 6em;
+        box-sizing: border-box; /* Ensures padding doesn't break width */
     }
 }
