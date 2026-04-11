@@ -478,7 +478,7 @@ export class UIController {
 
         element.insertAdjacentElement('afterend', div);
 
-        if (this.getConfig().checked) {
+        if (this.getConfig().autoRead) {
             this.speakStart(element.textContent);
         }
     }
