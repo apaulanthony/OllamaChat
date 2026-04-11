@@ -167,9 +167,6 @@ export class UIController {
         this.modelCombo.addEventListener('change', e => this.setConfig({ model: e.target.value }));
 
         this.loadModelsButton = document.getElementById('load-models-button');
-
-        console.log("this.loadModelsButton", this.loadModelsButton);
-
         this.loadModelsButton.addEventListener("click", () => this.onLoadModels?.(this.baseUrlInput.value, this.populateModels));
 
         this.voiceCombo = document.getElementById('voice-combo');
@@ -373,7 +370,7 @@ export class UIController {
                 throwOnError: false // Prevents the whole app from crashing if there's a typo in math
             });
         } catch (err) {
-            throw new Error("KaTeX rendering error:", { casuse: err });
+            throw new Error("KaTeX rendering error:", { cause: err });
         }
 
         this.scrollToBottom();

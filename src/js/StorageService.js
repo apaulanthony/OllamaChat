@@ -13,34 +13,16 @@ export class StorageService {
         this.name = dbName;
         this.defaultObjectStore = defaultObjectStore;
 
-        this.db = null; // Will hold the Promise from openDB()
-    }
-
-    async init() {
         // Convert the sematic version number from package.json to a 32-bit integer
         this.version = this.convertVersionToInt32(__APP_VERSION__);
-
-        // cached DB connection via promise
         this.db = this.openDB();
     }
 
-    /**
-     * Private helper to get the object store from a transaction
-     * 
-     * @param {string} storeName 
-     * @param {IDBTransactionMode} mode 
-     * @returns {IDBObjectStore}
-     */
-    async _getStore(storeName, mode = 'readonly') {
-        const db = await this.db;
-
-        return new Promise((resolve, reject) => {
-            const transaction = db.transaction([storeName], mode)
-            transaction.onerror = (event) => reject(event.target.error);
-
-            resolve(transaction.objectStore(storeName));
-        })
+    async init() {
+        // Ensure the promise is resolved before proceeding        
+        await this.db;
     }
+
 
     /**
      * Convert a sematic versioning string into an 32-bit integer.
@@ -72,10 +54,24 @@ export class StorageService {
             return val;
         }).reverse();
 
-        // Shift all parts either 0, 10 or 20 bits to the left, then combine them using reduce`
+        // Shift all parts either 0, 10 or 20 bits to the left, then combine them using reduce()
         return numericParts.reduce((acc, val, i) => {
             return acc | (val << (i * 10));
         }, 0);
+    }
+
+
+    async _executeRequest(storeName, operation, mode = 'readonly') {
+        const db = await this.db;
+
+        return new Promise((resolve, reject) => {
+            const transaction = db.transaction([storeName], mode);
+            transaction.onerror = (event) => reject(event.target.error);
+
+            const request = operation(transaction.objectStore(storeName));
+            request.onerror = () => reject(request.error);
+            request.onsuccess = () => resolve(request.result);
+        });
     }
 
     /**
@@ -114,33 +110,19 @@ export class StorageService {
      * @returns 
      */
     async saveRecord(data, name = this.defaultObjectStore) {
-        const db = await this.db;
-
-        return new Promise((resolve, reject) => {
-            const transaction = db.transaction(name, 'readwrite');
-            transaction.onerror = event => reject(event.target.error);
-
-            const request = transaction.objectStore(name).put({ ...data, date: Date.now() });
-            request.onsuccess = event => resolve(event.target.result);
-        });
+        return this._executeRequest(name, (store) =>
+            store.put({ ...data, date: Date.now() }), 'readwrite'
+        );
     }
 
     /**
      * Get a run by ID from IndexedDB
      * 
-     * @param {BigInteger} id 
+     * @param {number} id 
      * @returns {Promise<object>} 
      */
     async getRecord(id, name = this.defaultObjectStore) {
-        const db = await this.db;
-
-        return new Promise((resolve, reject) => {
-            const transaction = db.transaction(name);
-            transaction.onerror = event => reject(event.target.error);
-
-            const request = transaction.objectStore(name).get(id);
-            request.onsuccess = event => resolve(event.target.result);
-        });
+        return this._executeRequest(name, (store) => store.get(id));
     }
 
     /**
@@ -150,15 +132,7 @@ export class StorageService {
      * @returns {Promise<void>} resolves when the operation is complete
      */
     async deleteRecord(id, name = this.defaultObjectStore) {
-        const db = await this.db;
-
-        return new Promise((resolve, reject) => {
-            const transaction = db.transaction(name, 'readwrite');
-            transaction.onerror = event => reject(event.target.error);
-
-            const request = transaction.objectStore(name).delete(id);
-            request.onsuccess = event => resolve(event.target.result);
-        });
+        return this._executeRequest(name, store => store.delete(id), 'readwrite');
     }
 
     /**
@@ -167,15 +141,7 @@ export class StorageService {
      * @returns {Promise<Array<object>>} 
      */
     async getAllData(name = this.defaultObjectStore) {
-        const db = await this.db;
-
-        return new Promise((resolve, reject) => {
-            const transaction = db.transaction(name, 'readwrite');
-            transaction.onerror = event => reject(event.target.error);
-
-            const request = transaction.objectStore(name).getAll();
-            request.onsuccess = event => resolve(event.target.result);
-        });
+        return this._executeRequest(name, store => store.getAll());
     }
 
 
@@ -185,7 +151,7 @@ export class StorageService {
      * https://developer.mozilla.org/en-US/docs/Web/API/IDBIndex/getAll#browser_compatibility
      *
      * FF doesn't support "parameter by object", so no native "direction". Fortunately we're getting
-     * the whole set so the soluion is simple; Array.reverse() (It would be fiddlier if data
+     * the whole set so the solution is simple; Array.reverse() (It would be fiddlier if data
      * were fetched in pages to calculate offsets and then fetching the pages in reverse order).
      * 
      * @param {boolean} descending
@@ -214,15 +180,7 @@ export class StorageService {
      * @returns {Promise<array<void>>} 
      */
     async deleteAllData(name = this.defaultObjectStore) {
-        const db = await this.db;
-
-        return new Promise((resolve, reject) => {
-            const transaction = db.transaction(name, "readwrite");
-            transaction.onerror = event => reject(event.target.error);
-
-            const request = transaction.objectStore(name).clear();
-            request.onsuccess = event => resolve(event.target.result);;
-        });
+        return this._executeRequest(name, store => store.clear(), "readwrite");
     }
 
 
@@ -249,15 +207,7 @@ export class StorageService {
         const data = JSON.parse(jsonString);
         if (!Array.isArray(data)) throw new Error("Import data must be an array");
 
-        const db = await this.db;
-
-        return new Promise((resolve, reject) => {
-            const transaction = db.transaction([name], 'readwrite')
-            transaction.onerror = () => reject(transaction.error);
-            transaction.oncomplete = () => resolve();
-
-            const store = transaction.objectStore(name);
-
+        return this._executeRequest(name, store => {
             data.forEach(record => {
                 // We use put() to ensure that if an ID already exists, it is updated
                 // rather than creating duplicates, maintaining integrity.
@@ -265,6 +215,6 @@ export class StorageService {
                 // any errors and return the promise when done.
                 store.put({ date: Date.now(), ...record });
             });
-        });
+        }, "readwrite");
     }
 }
