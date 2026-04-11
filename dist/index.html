@@ -4,11 +4,11 @@
 		<meta charset="UTF-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 		<meta name="theme-color" content="#22c55e" />
-		<meta name="description" content="Track your runs with GPS and see them on a map" />
+		<meta name="description" content="Chat with a local LLM service" />
 		<link rel="manifest" href="manifest.json" />
 		<link rel="apple-touch-icon" href="icon-192.png" />
 		<title>🦙 OllamaChat</title>
-		<script type="module" crossorigin src="./assets/index-CjQCT7or.js"></script>
+		<script type="module" crossorigin src="./assets/index-43dgU6Ya.js"></script>
 		<link rel="stylesheet" crossorigin href="./assets/index-CFBTjgB8.css">
 	</head>
 	<body>
@@ -22,7 +22,7 @@
 			<fieldset>
 				<legend>Chat History</legend>
 
-				<label>Continue chat sesion <select id="history-combo"></select></label>				
+				<label>Continue chat sesion <select id="history-combo"></select></label>								
 				<button id="clear-history-button">Clear All</button>
 				<div>
 					<div>
@@ -34,10 +34,13 @@
 			</fieldset>
 	
 			<dialog id="configDialog" closedby="closerequest">
-				<form method="dialog">
+				<form id="config-form" method="dialog">
 					<fieldset class="options-container">
-						<label>Host: <input type="text" id="baseUrl-input" name="baseUrl" value="http://localhost:11434/ap"></label>
+						<label>Host: <input type="text" id="baseUrl-input" name="baseUrl" value=""></label>
+						<input type="button" id="load-models-button" value="Load" />
 						<label>Models <select id="model-combo" name="model"></select></label>
+						<label>Temperature <input type="number" id="temperature-input" name="temperature" min="0" max="1" step="0.01" /></label>
+						<label>Store chat sessions on server <input type="checkbox" id="store-checkbox" name="store" /></label>
 						<label>Auto read responses <input type="checkbox" id="auto-read-checkbox" name="autoRead"></label>
 						<label>Voices <select id="voice-combo" name="voice"></select></label>
 					</fieldset>    

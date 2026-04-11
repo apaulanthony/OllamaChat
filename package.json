@@ -1,14 +1,16 @@
 {
 	"name": "ollamachat",
-	"version": "1.2.5",
-	"description": "Chatbot interface for ollama",
+	"version": "1.2.6",
+	"description": "Chatbot interface for locally hosted LLMs (like Ollama or LM Studio)",
 	"license": "ISC",
 	"author": "A Paul Anthony",
 	"type": "module",
 	"main": "index.html",
 	"config": {
-		"baseUrl": "http://localhost:11434/api",
-		"model": "llama3"
+		"baseUrl": "http://localhost:1234/api/v1",
+		"model": "llama3",
+		"temperature": 0.7,
+		"store": false
 	},
 	"scripts": {
 		"build": "vite build",

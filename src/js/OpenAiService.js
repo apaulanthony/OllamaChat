@@ -1,14 +1,18 @@
 /**
- * OllamaService.js
- * Responsibility: Handles communication with the local Ollama API.
+ * OpenAiService.js
+ * Responsibility: Handles communication with the OpenAI compatible LLM API.
  */
-export class OllamaService {
+export class OpenAiService {
     /**
-     * @param {string} baseUrl - The host for the Ollama API (e.g., http://localhost:11434/api)
+     * @param {string} baseUrl - The host for the LLM API, e.g. Ollama http://localhost:11434/api, LM Studio http://localhost:1234/v1
      */
     constructor(baseUrl = "http://localhost:11434") {
+        this.setBaseUrl(baseUrl);
+    }
+
+    setBaseUrl(baseUrl) {
         // Ensure trailing slash in the baseUrl if it's missing or appending relative paths won't work
-        this.baseUrl = new URL(baseUrl + (!baseUrl.endsWith("/") ? "/":"")); 
+        this.baseUrl = new URL(baseUrl + (!baseUrl.endsWith("/") ? "/" : ""));
     }
 
     /**
@@ -16,20 +20,29 @@ export class OllamaService {
      *
      * @param {string} model - The name of the model to use (e.g., 'llama3')
      * @param {Array<Object>} messages - The conversation history array
+     * @param {number} temperature Optional. Randomness in token selection. 0 is deterministic, higher values increase creativity [0,1].
+
+ 
      * @returns {Promise<ReadableStream>} - A stream of the response body
      * @throws {Error} If the network request fails or the response is not OK.
      */
-    async chatStream(model, messages) {
-        const response = await fetch( new URL("chat", this.baseUrl), {
+    async chatStream(model, messages, temperature) {
+        const body = {
+            model: model,
+            messages: messages,
+            stream: true // Enable streaming
+        }
+
+        if (typeof temperature === "number") {
+            body.temperature = temperature;
+        }
+
+        const response = await fetch(new URL("chat", this.baseUrl), {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({
-                model: model,
-                messages: messages,
-                stream: true // Enable streaming
-            }),
+            body: JSON.stringify(body),
         });
 
         if (!response.ok) {
