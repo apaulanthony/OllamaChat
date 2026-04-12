@@ -74,7 +74,7 @@ export class LmStudioService extends BaseLlmService {
         });
     }
 
-    async listModels() {
+    async getAllModels() {
         const { baseUrl } = this.getConfig();
         try {
             const response = await fetch(new URL("models", baseUrl));

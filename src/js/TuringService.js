@@ -52,4 +52,10 @@ export class TuringService extends BaseLlmService {
             }
         })
     }
+
+
+    async getAllModels () {
+        // VAPID subscriptions
+        return []
+    }
 }

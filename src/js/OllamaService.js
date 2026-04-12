@@ -4,7 +4,7 @@
 */
 import { BaseLlmService } from './BaseLlmService.js';
 
-export class OllamaService extends LlmService {
+export class OllamaService extends BaseLlmService {
 
     /**
      * @param {Array<Object>} messages - The conversation history.
