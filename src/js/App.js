@@ -132,7 +132,7 @@ class App {
             ...this.chat,
         };
 
-        chat.messages.push(message); q
+        chat.messages.push(message);
         chat.sessionName = chat.messages[0].content.substring(0, 30) + '...'; // TODO: Get AI to create summary of conversation?       
 
         // Make sure that falsey ids are properly deleted that we can re-use the same
@@ -143,10 +143,10 @@ class App {
         chat.id = await this.storage.saveRecord(chat);
 
         // Update UI with User Message (immedidately completing it)
-        this.finishMessage(this.ui.addMessage('user', text, chat.id, chat.messages.length));
+        this.ui.finishMessage(this.ui.addMessage('user', text, chat.id, chat.messages.length));
 
         // Update chat history combo box (doesn't matter if we don't wait)
-        this.ui.populateChats(this.storage.getAllDataByDate(true), chat.id + '');
+        this.ui.populateChats(await this.storage.getAllDataByDate(true), chat.id + '');
 
 
         let fullAiContent = '';
