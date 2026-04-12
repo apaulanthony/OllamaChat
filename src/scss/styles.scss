@@ -261,6 +261,13 @@ dialog {
             border-radius: 4px;
         }
 
+        // Target elements that contain unparsed Math or Mermaid syntax
+        // This hides the "raw" text during the stream
+        // and only shows it once finishMessage runs.
+        //math, .mermaid {
+        //    visibility: hidden; 
+        //}
+
         &.message-system {
             @include bubble;
             background: #e0e0e0; /* System messages often look better neutral */

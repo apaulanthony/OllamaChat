@@ -18,7 +18,22 @@
 			</header>
 
 			<button id="showConfigDialog">Configuration</button>
-	
+			<dialog id="configDialog" closedby="closerequest">
+				<form id="config-form" method="dialog">
+					<fieldset class="options-container">
+						<label>Host: <input type="text" id="baseUrl-input" name="baseUrl" value=""></label>
+						<label>LLM engine <select id="engine-combo" name="engine"><option value="LmStudioService">LM Studio</option><option value="OllamaService">Ollama</option></select></label>
+						<input type="button" id="load-models-button" value="Load" />
+						<label>Models <select id="model-combo" name="model"></select></label>
+						<label>Temperature <input type="number" id="temperature-input" name="temperature" min="0" max="1" step="0.01" /></label>
+						<label>Store chat sessions on server <input type="checkbox" id="store-checkbox" name="store" /></label>
+						<label>Auto read responses <input type="checkbox" id="auto-read-checkbox" name="autoRead"></label>
+						<label>Voices <select id="voice-combo" name="voice"></select></label>
+					</fieldset>    
+					<button>Close</button>
+				</form>
+			</dialog>
+			
 			<fieldset>
 				<legend>Chat History</legend>
 
@@ -31,22 +46,7 @@
 					</div>
 					<button id="export-history-button">Export All</button>
 				</div>
-			</fieldset>
-	
-			<dialog id="configDialog" closedby="closerequest">
-				<form id="config-form" method="dialog">
-					<fieldset class="options-container">
-						<label>Host: <input type="text" id="baseUrl-input" name="baseUrl" value=""></label>
-						<input type="button" id="load-models-button" value="Load" />
-						<label>Models <select id="model-combo" name="model"></select></label>
-						<label>Temperature <input type="number" id="temperature-input" name="temperature" min="0" max="1" step="0.01" /></label>
-						<label>Store chat sessions on server <input type="checkbox" id="store-checkbox" name="store" /></label>
-						<label>Auto read responses <input type="checkbox" id="auto-read-checkbox" name="autoRead"></label>
-						<label>Voices <select id="voice-combo" name="voice"></select></label>
-					</fieldset>    
-					<button>Close</button>
-				</form>
-			</dialog>			
+			</fieldset>			
 		</div>
 		
 		<div class="chat-container">
@@ -57,6 +57,7 @@
 			<div class="input-area">
 				<button id="mic-btn" title="Dictate">🎤</button>
 				<textarea type="text" id="chat-input" placeholder="Type a message..."></textarea>
+				<input type="file" id="file-input" />
 				<button id="send-btn">Send</button>
 			</div>		
 		</div>

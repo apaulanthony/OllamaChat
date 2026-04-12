@@ -2,6 +2,7 @@ import { marked } from 'marked';
 import DOMPurify from 'dompurify';
 import 'katex/dist/katex.css';
 import renderMathInElement from 'katex/contrib/auto-render';
+import mermaid from 'mermaid';
 
 /**
  *  UIController.js
@@ -18,12 +19,9 @@ export class UIController {
         this.getConfig = null;
         this.setConfig = null;
 
-        this.onLoadModels = null
-        this.onFetchModels = null
+        this.getAllModels = null
 
-
-        this.getAllModels = null;
-
+        this.onEngineChange = null
         this.getComboChatHistoryData = null;
         this.onExportData = null;
         this.onImportData = null;
@@ -53,7 +51,7 @@ export class UIController {
     }
 
     init() {
-        const ui = this;
+        mermaid.initialize({ startOnLoad: false });
 
         if (typeof this.getConfig !== 'function') {
             throw Error("UIController.getConfig is not defined. Please define it in your UI");
@@ -61,6 +59,11 @@ export class UIController {
 
         if (typeof this.setConfig !== 'function') {
             throw Error("UIController.setConfig is not defined. Please define it in your UI");
+        }
+
+
+        if (typeof this.onEngineChange !== 'function') {
+            throw Error("UIController.onEngineChange is not defined. Please define it in your UI");
         }
 
         if (typeof this.getAllModels !== 'function') {
@@ -93,21 +96,23 @@ export class UIController {
             throw Error("UIController.handleSendMessage is not defined. Please define it in your UI");
         }
 
-        this.configDialog = document.getElementById('configDialog');
-        this.configDialog.addEventListener("close", () => {
-            const config = {
-                ...this.getConfig()
-            };
+
+        const getDialogConfig = () => {
+            const config = {};
 
             document.querySelectorAll('#configDialog input[name], #configDialog select[name]').forEach(input => {
                 config[input.name] = input.type === "checkbox" ? !!input.checked : input.value;
-            })
+            });
 
-            this.setConfig(config);
-        })
+            return config
+        };
+
+
+        this.configDialog = document.getElementById('configDialog');
+        this.configDialog.addEventListener("close", () => this.setConfig(getDialogConfig()));
 
         this.showConfigDialog = document.getElementById('showConfigDialog');
-        this.configDialog && this.showConfigDialog.addEventListener('click', () => {
+        this.configDialog && this.showConfigDialog.addEventListener('click', async () => {
             const config = this.getConfig();
 
             document.querySelectorAll('#configDialog form [name]').forEach(input => {
@@ -120,7 +125,8 @@ export class UIController {
                 }
             })
 
-            this.onLoadModels?.(config.baseUrl, this.populateModels)
+            //const models = this.getAllModels();
+            //this.populateModels(await models, config.model);
 
             this.configDialog.showModal();
         });
@@ -128,31 +134,31 @@ export class UIController {
 
         this.historyCombo = document.getElementById('history-combo');
         if (this.historyCombo) {
-            this.populateChats();
+            Promise.resolve(this.getComboChatHistoryData(true)).then(data => this.populateChats(data));
             this.historyCombo.addEventListener('change', e => this.onChatSelected?.(+e.target.value));
         }
 
         this.clearHistoryBtn = document.getElementById('clear-history-button');
-        this.clearHistoryBtn.addEventListener('click', async () => { if (this.onClearHistory && confirm("Are you sure you want to clear the chat?")) { await this.onClearHistory(); this.populateChats() } });
+        this.clearHistoryBtn.addEventListener('click', async () => { if (this.onClearHistory && confirm("Are you sure you want to clear the chat?")) { await this.onClearHistory(); this.populateChats([]) } });
 
         this.exportHistoryButton = document.getElementById("export-history-button");
         this.exportHistoryButton.addEventListener("click", async () => this.onExportData && this.exportSessionData(await this.onExportData()));
 
         this.importHistoryFile = document.getElementById("import-history");
         this.importHistoryButton = document.getElementById("import-history-button");
-        this.importHistoryButton.addEventListener("click", async () => {  
+        this.importHistoryButton.addEventListener("click", async () => {
             const file = this.importHistoryFile.files[0];
             if (!(this.onImportData && file)) return;
             const data = await new Promise((resolve, reject) => {
-                const reader = new FileReader(); 
-                reader.onerror = () => reject(reader.error); 
+                const reader = new FileReader();
+                reader.onerror = () => reject(reader.error);
                 reader.onload = () => resolve(reader.result);
                 reader.readAsText(file);
             });
             await this.onImportData(data);
-            this.populateChats() 
+            this.populateChats(data)
         });
-        
+
 
         // this.optionsFieldset = document.getElementById('options-fieldset');
         // this.optionsCheckbox = document.getElementById('options-checkbox');
@@ -166,14 +172,23 @@ export class UIController {
         this.modelCombo = document.getElementById('model-combo');
         this.modelCombo.addEventListener('change', e => this.setConfig({ model: e.target.value }));
 
+        this.engineCombo = document.getElementById('engine-combo');
+        this.engineCombo.addEventListener('change', e => {
+            this.onEngineChange && this.onEngineChange(e.target.value)
+        });
+
         this.loadModelsButton = document.getElementById('load-models-button');
-        this.loadModelsButton.addEventListener("click", () => this.onLoadModels?.(this.baseUrlInput.value, this.populateModels));
+        this.loadModelsButton.addEventListener("click", async () => {
+            this.setConfig({ baseUrl: this.baseUrlInput.value });
+            const models = await this.getAllModels();
+            this.populateModels(models, this.getConfig().model);
+        });
 
         this.voiceCombo = document.getElementById('voice-combo');
         if (this.voiceCombo) {
-            this.populateVoices(this.getConfig().voice);
             this.voiceCombo.addEventListener('change', e => this.setConfig({ voice: e.target.value }));
-            this.synth.onvoiceschanged = () => this.populateVoices(this.getConfig().voice); // In case voices change
+            this.synth.onvoiceschanged = () => this.populateVoices(this.synth.getVoices(), this.getConfig().voice); // In case voices change            
+            Promise.resolve(this.synth.getVoices()).then(voices => this.populateVoices(voices, this.getConfig().voice));
         }
 
         this.chatWindow = document.getElementById('chat-window');
@@ -183,7 +198,7 @@ export class UIController {
 
         this.chatInput = document.getElementById('chat-input');
         this.chatInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') this.sendMessage();
+            if (!(e.ctrlKey || e.altKey || e.shiftKey || e.metaKey) && e.key === 'Enter') this.sendMessage();
         });
 
         this.sendBtn = document.getElementById('send-btn');
@@ -251,38 +266,41 @@ export class UIController {
         }
     }
 
-    async populateChats(currentChat) {
+    async populateChats(chats = null, currentChat = null) {
         const chatCombo = this.historyCombo;
-        const chats = await this.getComboChatHistoryData(true);
 
-        chatCombo.length = 0
+        if (chats) {
+            chatCombo.length = 0
 
-        const option = document.createElement("option");
-        option.textContent = " - New - "
-        option.value = '0';
-        chatCombo.add(option);
-
-        for (const chat of chats) {
             const option = document.createElement("option");
-            option.value = chat.id.toString();
-            option.textContent = `${new Date(chat.date)} ${chat.messages[0].content}`;
-
+            option.textContent = " - New - "
+            option.value = '0';
             chatCombo.add(option);
+
+            for (const chat of chats) {
+                const option = document.createElement("option");
+                option.value = chat.id.toString();
+                option.textContent = `${new Date(chat.date)} ${chat.messages[0].content}`;
+
+                chatCombo.add(option);
+            }
         }
 
         chatCombo.value = (currentChat || '0');
     }
 
-    async populateModels(models, currentModel) {
+    async populateModels(models, currentModel = null) {
         const modelCombo = document.getElementById('model-combo');
 
-        modelCombo.length = 0;
+        if (models) {
+            modelCombo.length = 0;
 
-        for (const model of models) {
-            const option = document.createElement("option");
-            option.value = model.id || model.key || model.name;
-            option.textContent = model.displayName || option.value;
-            modelCombo.add(option);
+            for (const model of models) {
+                const option = document.createElement("option");
+                option.value = model.code;
+                option.textContent = model.description;
+                modelCombo.add(option);
+            }
         }
 
         modelCombo.value = currentModel
@@ -290,50 +308,55 @@ export class UIController {
 
     displayChatHistory(chat) {
         this.chatWindow.innerHTML = '';
-        chat.messages?.forEach((message, i) => this.addMessage(message.role, message.content, chat.id, i));
+
+        chat?.messages?.forEach((message, i) => {
+            const bubbleId = this.addMessage(message.role, message.content, chat.id, i);
+            this.finishMessage(bubbleId);
+        });
     }
 
-    async populateVoices(currentVoice) {
+    async populateVoices(voices = null, currentVoice = null) {
         const voiceCombo = this.voiceCombo;
-        const voices = this.synth.getVoices();
 
-        // Sort by language, then name
-        voices.sort((a, b) => {
-            if (a.lang > b.lang) return 1
-            if (a.lang < b.lang) return -1
+        if (voices) {
+            // Sort by language, then name
+            voices.sort((a, b) => {
+                if (a.lang > b.lang) return 1
+                if (a.lang < b.lang) return -1
 
-            if (a.name > b.name) return 1
-            if (a.name < b.name) return -1
+                if (a.name > b.name) return 1
+                if (a.name < b.name) return -1
 
-            return 0
-        });
+                return 0
+            });
 
-        // Create a map of voices grouped by language for easier access
-        const groupedVoices = {};
-        voices.forEach(v => (groupedVoices[v.lang] = [...(groupedVoices[v.lang] || []), v]));
+            // Create a map of voices grouped by language for easier access
+            const groupedVoices = {};
+            voices.forEach(v => (groupedVoices[v.lang] = [...(groupedVoices[v.lang] || []), v]));
 
-        voiceCombo.length = 0;
+            voiceCombo.length = 0;
 
-        for (const group in groupedVoices) {
-            const optgroup = document.createElement("optgroup");
-            optgroup.label = groupedVoices[group][0].lang;
+            for (const group in groupedVoices) {
+                const optgroup = document.createElement("optgroup");
+                optgroup.label = groupedVoices[group][0].lang;
 
-            for (const voice of groupedVoices[group]) {
-                const option = document.createElement("option");
-                option.textContent = `${voice.name} (${voice.lang})`;
-                option.value = voice.name;
+                for (const voice of groupedVoices[group]) {
+                    const option = document.createElement("option");
+                    option.textContent = `${voice.name} (${voice.lang})`;
+                    option.value = voice.name;
 
-                if (voice.default) {
-                    option.selected = true;
-                    option.textContent += " — DEFAULT";
+                    if (voice.default) {
+                        option.selected = true;
+                        option.textContent += " — DEFAULT";
+                    }
+
+                    optgroup.appendChild(option);
                 }
 
-                optgroup.appendChild(option);
-            }
-
-            // Skip adding empty optgroups
-            if (optgroup.childElementCount) {
-                voiceCombo.add(optgroup);
+                // Skip adding empty optgroups
+                if (optgroup.childElementCount) {
+                    voiceCombo.add(optgroup);
+                }
             }
         }
 
@@ -357,20 +380,6 @@ export class UIController {
 
         if (className) {
             element.classList.add(className);
-        }
-
-        try {
-            renderMathInElement(element, {
-                delimiters: [
-                    { left: '$$', right: '$$', display: true },   // Block math
-                    { left: '$', right: '$', display: false },    // Inline math
-                    { left: '\\(', right: '\\)', display: false }, // LaTeX inline
-                    { left: '\\[', right: '\\]', display: true }  // LaTeX block
-                ],
-                throwOnError: false // Prevents the whole app from crashing if there's a typo in math
-            });
-        } catch (err) {
-            throw new Error("KaTeX rendering error:", { cause: err });
         }
 
         this.scrollToBottom();
@@ -451,9 +460,37 @@ export class UIController {
         }
     }
 
-    // Add Read Aloud button to the completed message
+    /**
+     * Perform the heavier rendering manipulations only when the message is complete
+     * Append Read Aloud buttons.
+     * 
+     * @param {*} bubbleId 
+     */
     finishMessage(bubbleId) {
         const element = document.getElementById(bubbleId);
+
+        try {
+            renderMathInElement(element, {
+                delimiters: [
+                    { left: '$$', right: '$$', display: true },   // Block math
+                    { left: '$', right: '$', display: false },    // Inline math
+                    { left: '\\(', right: '\\)', display: false }, // LaTeX inline
+                    { left: '\\[', right: '\\]', display: true }  // LaTeX block
+                ],
+                throwOnError: false // Prevents the whole app from crashing if there's a typo in math
+            });
+        } catch (err) {
+            throw new Error("KaTeX rendering error:", { cause: err });
+        }
+
+        try {
+            mermaid.run({
+                nodes: document.querySelectorAll(`#${bubbleId} .mermaid, #${bubbleId} .language-mermaid`),
+                suppressErrors: true
+            });
+        } catch (err) {
+            throw new Error("Mermaid rendering error:", { cause: err });
+        }        
 
         const speakBtn = document.createElement('button');
         speakBtn.innerHTML = '🔊';
@@ -466,7 +503,6 @@ export class UIController {
         stopBtn.className = 'tts-button';
         stopBtn.title = 'Stop';
         stopBtn.onclick = () => this.speakCancel();
-
 
         const div = document.createElement('div');
         div.className = "tts-container";

@@ -8,7 +8,28 @@
 		<link rel="manifest" href="manifest.json" />
 		<link rel="apple-touch-icon" href="icon-192.png" />
 		<title>🦙 OllamaChat</title>
-		<script type="module" crossorigin src="./assets/index-CsPXE2Nm.js"></script>
+		<script type="module" crossorigin src="./assets/index-BYCHEvdV.js"></script>
+		<link rel="modulepreload" crossorigin href="./assets/chunk-CFjPhJqf.js">
+		<link rel="modulepreload" crossorigin href="./assets/src-B0URjIBy.js">
+		<link rel="modulepreload" crossorigin href="./assets/chunk-ICPOFSXX-t0cSmvKC.js">
+		<link rel="modulepreload" crossorigin href="./assets/dist-CI4Ae8jO.js">
+		<link rel="modulepreload" crossorigin href="./assets/identity-Bn9qO8wh.js">
+		<link rel="modulepreload" crossorigin href="./assets/chunk-5PVQY5BW-a7IpRLvA.js">
+		<link rel="modulepreload" crossorigin href="./assets/chunk-U2HBQHQK-BoNRmYsb.js">
+		<link rel="modulepreload" crossorigin href="./assets/katex-COdSFq2Q.js">
+		<link rel="modulepreload" crossorigin href="./assets/isEmpty-wnWdxaPL.js">
+		<link rel="modulepreload" crossorigin href="./assets/chunk-X2U36JSP-CXjvSkAJ.js">
+		<link rel="modulepreload" crossorigin href="./assets/chunk-ZZ45TVLE-GWShIZIR.js">
+		<link rel="modulepreload" crossorigin href="./assets/rough.esm-C7RslGBg.js">
+		<link rel="modulepreload" crossorigin href="./assets/chunk-5FUZZQ4R-Cu_uLHG6.js">
+		<link rel="modulepreload" crossorigin href="./assets/path-BCgwsvmy.js">
+		<link rel="modulepreload" crossorigin href="./assets/array-DKReyB4R.js">
+		<link rel="modulepreload" crossorigin href="./assets/line-CCrudidA.js">
+		<link rel="modulepreload" crossorigin href="./assets/chunk-BSJP7CBP-taR_zczE.js">
+		<link rel="modulepreload" crossorigin href="./assets/chunk-ENJZ2VHE-DOoTQlWf.js">
+		<link rel="modulepreload" crossorigin href="./assets/chunk-336JU56O-BS1nDUvC.js">
+		<link rel="modulepreload" crossorigin href="./assets/chunk-426QAEUC-DpdMyWX3.js">
+		<link rel="modulepreload" crossorigin href="./assets/chunk-XPW4576I-BC9ivtUn.js">
 		<link rel="stylesheet" crossorigin href="./assets/index-BeJjsmA0.css">
 	</head>
 	<body>
@@ -18,7 +39,22 @@
 			</header>
 
 			<button id="showConfigDialog">Configuration</button>
-	
+			<dialog id="configDialog" closedby="closerequest">
+				<form id="config-form" method="dialog">
+					<fieldset class="options-container">
+						<label>Host: <input type="text" id="baseUrl-input" name="baseUrl" value=""></label>
+						<label>LLM engine <select id="engine-combo" name="engine"><option value="LmStudioService">LM Studio</option><option value="OllamaService">Ollama</option></select></label>
+						<input type="button" id="load-models-button" value="Load" />
+						<label>Models <select id="model-combo" name="model"></select></label>
+						<label>Temperature <input type="number" id="temperature-input" name="temperature" min="0" max="1" step="0.01" /></label>
+						<label>Store chat sessions on server <input type="checkbox" id="store-checkbox" name="store" /></label>
+						<label>Auto read responses <input type="checkbox" id="auto-read-checkbox" name="autoRead"></label>
+						<label>Voices <select id="voice-combo" name="voice"></select></label>
+					</fieldset>    
+					<button>Close</button>
+				</form>
+			</dialog>
+			
 			<fieldset>
 				<legend>Chat History</legend>
 
@@ -31,22 +67,7 @@
 					</div>
 					<button id="export-history-button">Export All</button>
 				</div>
-			</fieldset>
-	
-			<dialog id="configDialog" closedby="closerequest">
-				<form id="config-form" method="dialog">
-					<fieldset class="options-container">
-						<label>Host: <input type="text" id="baseUrl-input" name="baseUrl" value=""></label>
-						<input type="button" id="load-models-button" value="Load" />
-						<label>Models <select id="model-combo" name="model"></select></label>
-						<label>Temperature <input type="number" id="temperature-input" name="temperature" min="0" max="1" step="0.01" /></label>
-						<label>Store chat sessions on server <input type="checkbox" id="store-checkbox" name="store" /></label>
-						<label>Auto read responses <input type="checkbox" id="auto-read-checkbox" name="autoRead"></label>
-						<label>Voices <select id="voice-combo" name="voice"></select></label>
-					</fieldset>    
-					<button>Close</button>
-				</form>
-			</dialog>			
+			</fieldset>			
 		</div>
 		
 		<div class="chat-container">
@@ -57,6 +78,7 @@
 			<div class="input-area">
 				<button id="mic-btn" title="Dictate">🎤</button>
 				<textarea type="text" id="chat-input" placeholder="Type a message..."></textarea>
+				<input type="file" id="file-input" />
 				<button id="send-btn">Send</button>
 			</div>		
 		</div>
