@@ -66,6 +66,7 @@ class App {
         this.ui.getComboChatHistoryData = (descending = true) => app.storage.getAllDataByDate(descending);
         this.ui.onChatSelected = async (id) => {
             const chat = app.chat = await app.storage.getRecord(id);
+            chat.messages = chat.messages.filter(m => !!m.content); // Filter empty contents
             app.ui.displayChatHistory(chat);
         };
 
