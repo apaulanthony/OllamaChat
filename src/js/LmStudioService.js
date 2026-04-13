@@ -7,7 +7,7 @@ import { BaseLlmService } from './BaseLlmService.js';
 export class LmStudioService extends BaseLlmService {
 
     /**
-     * @param {Array<Object>} options.messages - The conversation history.
+     * @param {Array<Object>} messages - The conversation history.
      * @returns {Promise<ReadableStream>}
      * @throws {Error} If the method is not implemented in a subclass.
      */

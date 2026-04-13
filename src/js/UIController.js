@@ -4,6 +4,17 @@ import 'katex/dist/katex.css';
 import renderMathInElement from 'katex/contrib/auto-render';
 import mermaid from 'mermaid';
 
+// Define constants for repeated strings
+const CONFIG_DIALOG_ID = 'configDialog';
+const CHAT_WINDOW_ID = 'chat-window';
+const LOADING_MOODS = ['globe', 'dice', 'lunar', 'weather-1', 'weather-2', 'clocks', ''];
+const KATEX_DELIMITERS = [
+    { left: '$$', right: '$$', display: true },   // Block math
+    { left: '$', right: '$', display: false },    // Inline math
+    { left: '\\(', right: '\\)', display: false }, // LaTeX inline
+    { left: '\\[', right: '\\]', display: true }  // LaTeX block
+];
+
 /**
  *  UIController.js
  *  Responsibility: Handles the user interface and interactions
@@ -31,15 +42,10 @@ export class UIController {
 
         this.handleSendMessage = null;
 
-
         // UI Elements
         this.newChatBtn = null;
         this.historyCombo = null;
         this.clearHistoryBtn = null;
-
-        this.optionsFieldset = null;
-        this.optionsCheckbox = null;
-        this.optionsContainer = null;
 
         this.baseUrlInput = null;
         this.loadModelsButton = null;
@@ -48,147 +54,194 @@ export class UIController {
         this.chatInput = null;
         this.sendBtn = null;
         this.micBtn = null;
+
+        // Store event handlers for cleanup
+        this._chatInputHandler = null;
+        this._sendBtnHandler = null;
+        this._micBtnHandler = null;
+        this._clearHistoryHandler = null;
+        this._exportHistoryHandler = null;
+        this._importHistoryHandler = null;
+        this._modelComboHandler = null;
+        this._engineComboHandler = null;
+        this._voiceComboHandler = null;
+    }
+
+    /**
+     * Validate that a required callback function is defined
+     * @param {*} callback - The callback to validate
+     * @param {string} name - The name of the callback
+     */
+    validateCallback(callback, name) {
+        if (typeof callback !== 'function') {
+            throw new Error(`UIController.${name} is not defined. Please define it in your UI`);
+        }
+    }
+
+    /**
+     * Clean up event listeners and resources to prevent memory leaks
+     */
+    destroy() {
+        // Remove event listeners
+        this.chatInput?.removeEventListener('keypress', this._chatInputHandler);
+        this.sendBtn?.removeEventListener('click', this._sendBtnHandler);
+        this.micBtn?.removeEventListener('click', this._micBtnHandler);
+        this.clearHistoryBtn?.removeEventListener('click', this._clearHistoryHandler);
+        this.exportHistoryButton?.removeEventListener('click', this._exportHistoryHandler);
+        this.importHistoryButton?.removeEventListener('click', this._importHistoryHandler);
+        this.modelCombo?.removeEventListener('change', this._modelComboHandler);
+        this.engineCombo?.removeEventListener('change', this._engineComboHandler);
+        this.voiceCombo?.removeEventListener('change', this._voiceComboHandler);
+        
+        // Stop speech recognition and synthesis
+        this.recognition?.stop();
+        this.synth?.cancel();
+        
+        // Clear synth event handlers
+        this.synth.onvoiceschanged = null;
+        
+        // Clear dialog event handler
+        this.configDialog?.removeEventListener("close", this._configDialogCloseHandler);
+        this.showConfigDialog?.removeEventListener('click', this._showConfigDialogHandler);
+        this.historyCombo?.removeEventListener('change', this._historyComboChangeHandler);
     }
 
     init() {
         mermaid.initialize({ startOnLoad: false });
 
-        if (typeof this.getConfig !== 'function') {
-            throw Error("UIController.getConfig is not defined. Please define it in your UI");
-        }
-
-        if (typeof this.setConfig !== 'function') {
-            throw Error("UIController.setConfig is not defined. Please define it in your UI");
-        }
-
-
-        if (typeof this.onEngineChange !== 'function') {
-            throw Error("UIController.onEngineChange is not defined. Please define it in your UI");
-        }
-
-        if (typeof this.getAllModels !== 'function') {
-            throw Error("UIController.getAllModels is not defined. Please define it in your UI");
-        }
-
-
-        if (typeof this.getComboChatHistoryData !== 'function') {
-            throw Error("UIController.getComboChatHistoryData is not defined. Please define it in your UI");
-        }
-
-        if (typeof this.onChatSelected !== 'function') {
-            throw Error("UIController.onChatSelected is not defined. Please define it in your UI");
-        }
-
-
-        if (typeof this.onExportData !== 'function') {
-            throw Error("UIController.onExportData is not defined. Please define it in your UI");
-        }
-
-        if (typeof this.onImportData !== 'function') {
-            throw Error("UIController.onImportData is not defined. Please define it in your UI");
-        }
-
-        if (typeof this.onClearHistory !== 'function') {
-            throw Error("UIController.onClearHistory is not defined. Please define it in your UI");
-        }
-
-        if (typeof this.handleSendMessage !== 'function') {
-            throw Error("UIController.handleSendMessage is not defined. Please define it in your UI");
-        }
-
+        // Validate all required callbacks
+        this.validateCallback(this.getConfig, 'getConfig');
+        this.validateCallback(this.setConfig, 'setConfig');
+        this.validateCallback(this.onEngineChange, 'onEngineChange');
+        this.validateCallback(this.getAllModels, 'getAllModels');
+        this.validateCallback(this.getComboChatHistoryData, 'getComboChatHistoryData');
+        this.validateCallback(this.onChatSelected, 'onChatSelected');
+        this.validateCallback(this.onExportData, 'onExportData');
+        this.validateCallback(this.onImportData, 'onImportData');
+        this.validateCallback(this.onClearHistory, 'onClearHistory');
+        this.validateCallback(this.handleSendMessage, 'handleSendMessage');
 
         const getDialogConfig = () => {
             const config = {};
-
             document.querySelectorAll('#configDialog input[name], #configDialog select[name]').forEach(input => {
                 config[input.name] = input.type === "checkbox" ? !!input.checked : input.value;
             });
-
-            return config
+            return config;
         };
 
-
         this.configDialog = document.getElementById('configDialog');
-        this.configDialog.addEventListener("close", () => this.setConfig(getDialogConfig()));
+        if (this.configDialog) {
+            this._configDialogCloseHandler = () => this.setConfig(getDialogConfig());
+            this.configDialog.addEventListener("close", this._configDialogCloseHandler);
+        }
 
         this.showConfigDialog = document.getElementById('showConfigDialog');
-        this.configDialog && this.showConfigDialog.addEventListener('click', async () => {
-            const config = this.getConfig();
-
-            document.querySelectorAll('#configDialog form [name]').forEach(input => {
-                if (config.hasOwnProperty(input.name)) {
-                    if (input.type === "checkbox") {
-                        input.checked = !!config[input.name]
-                    } else {
-                        input.value = config[input.name]
+        if (this.configDialog && this.showConfigDialog) {
+            this._showConfigDialogHandler = async () => {
+                const config = this.getConfig();
+                document.querySelectorAll('#configDialog form [name]').forEach(input => {
+                    if (config.hasOwnProperty(input.name)) {
+                        if (input.type === "checkbox") {
+                            input.checked = !!config[input.name]
+                        } else {
+                            input.value = config[input.name]
+                        }
                     }
-                }
-            })
-
-            //const models = this.getAllModels();
-            //this.populateModels(await models, config.model);
-
-            this.configDialog.showModal();
-        });
-
+                })
+                this.configDialog.showModal();
+            };
+            this.showConfigDialog.addEventListener('click', this._showConfigDialogHandler);
+        }
 
         this.historyCombo = document.getElementById('history-combo');
         if (this.historyCombo) {
-            Promise.resolve(this.getComboChatHistoryData(true)).then(data => this.populateChats(data));
-            this.historyCombo.addEventListener('change', e => this.onChatSelected?.(+e.target.value));
+            Promise.resolve(this.getComboChatHistoryData(true))
+                .then(data => this.populateChats(data))
+                .catch(err => console.error('Failed to load chat history:', err));
+            
+            this._historyComboChangeHandler = (e) => this.onChatSelected?.(+e.target.value);
+            this.historyCombo.addEventListener('change', this._historyComboChangeHandler);
         }
 
         this.clearHistoryBtn = document.getElementById('clear-history-button');
-        this.clearHistoryBtn.addEventListener('click', async () => { if (this.onClearHistory && confirm("Are you sure you want to clear the chat?")) { await this.onClearHistory(); this.populateChats([]) } });
+        if (this.clearHistoryBtn) {
+            this._clearHistoryHandler = async () => {
+                if (this.onClearHistory && confirm("Are you sure you want to clear the chat?")) {
+                    await this.onClearHistory();
+                    this.populateChats(await this.getComboChatHistoryData(true));
+                }
+            };
+            this.clearHistoryBtn.addEventListener('click', this._clearHistoryHandler);
+        }
 
         this.exportHistoryButton = document.getElementById("export-history-button");
-        this.exportHistoryButton.addEventListener("click", async () => this.onExportData && this.exportSessionData(await this.onExportData()));
+        if (this.exportHistoryButton) {
+            this._exportHistoryHandler = async () => {
+                if (this.onExportData) {
+                    this.exportSessionData(await this.onExportData());
+                }
+            };
+            this.exportHistoryButton.addEventListener("click", this._exportHistoryHandler);
+        }
 
         this.importHistoryFile = document.getElementById("import-history");
         this.importHistoryButton = document.getElementById("import-history-button");
-        this.importHistoryButton.addEventListener("click", async () => {
-            const file = this.importHistoryFile.files[0];
-            if (!(this.onImportData && file)) return;
-            const data = await new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.onerror = () => reject(reader.error);
-                reader.onload = () => resolve(reader.result);
-                reader.readAsText(file);
-            });
-            await this.onImportData(data);
-            this.populateChats(data)
-        });
-
-
-        // this.optionsFieldset = document.getElementById('options-fieldset');
-        // this.optionsCheckbox = document.getElementById('options-checkbox');
-        // this.optionsContainer = document.getElementById('options-container');
-        // this.optionsContainer && this.optionsCheckbox?.addEventListener('change', e => {
-        //     this.optionsContainer.style.maxHeight = (e.target.checked ? 'none' : '0px');
-        // });
+        if (this.importHistoryButton) {
+            this._importHistoryHandler = async () => {
+                const file = this.importHistoryFile?.files[0];
+                if (!(this.onImportData && file)) return;
+                try {
+                    const data = await new Promise((resolve, reject) => {
+                        const reader = new FileReader();
+                        reader.onerror = () => reject(reader.error);
+                        reader.onload = () => resolve(reader.result);
+                        reader.readAsText(file);
+                    });
+                    await this.onImportData(data);
+                    this.populateChats(data);
+                } catch (err) {
+                    console.error('Failed to import chat history:', err);
+                    alert('Error importing chat history. Please check the file format.');
+                }
+            };
+            this.importHistoryButton.addEventListener("click", this._importHistoryHandler);
+        }
 
         this.baseUrlInput = document.getElementById('baseUrl-input');
 
         this.modelCombo = document.getElementById('model-combo');
-        this.modelCombo.addEventListener('change', e => this.setConfig({ model: e.target.value }));
+        if (this.modelCombo) {
+            this._modelComboHandler = (e) => this.setConfig({ model: e.target.value });
+            this.modelCombo.addEventListener('change', this._modelComboHandler);
+        }
 
         this.engineCombo = document.getElementById('engine-combo');
-        this.engineCombo.addEventListener('change', e => {
-            this.onEngineChange && this.onEngineChange(e.target.value)
-        });
+        if (this.engineCombo) {
+            this._engineComboHandler = (e) => {
+                if (this.onEngineChange) this.onEngineChange(e.target.value);
+            };
+            this.engineCombo.addEventListener('change', this._engineComboHandler);
+        }
 
         this.loadModelsButton = document.getElementById('load-models-button');
-        this.loadModelsButton.addEventListener("click", async () => {
-            this.setConfig({ baseUrl: this.baseUrlInput.value });
-            const models = await this.getAllModels();
-            this.populateModels(models, this.getConfig().model);
-        });
+        if (this.loadModelsButton) {
+            this.loadModelsButton.addEventListener("click", async () => {
+                if (this.baseUrlInput) {
+                    this.setConfig({ baseUrl: this.baseUrlInput.value });
+                }
+                const models = await this.getAllModels();
+                this.populateModels(models, this.getConfig().model);
+            });
+        }
 
         this.voiceCombo = document.getElementById('voice-combo');
         if (this.voiceCombo) {
-            this.voiceCombo.addEventListener('change', e => this.setConfig({ voice: e.target.value }));
-            this.synth.onvoiceschanged = () => this.populateVoices(this.synth.getVoices(), this.getConfig().voice); // In case voices change            
-            Promise.resolve(this.synth.getVoices()).then(voices => this.populateVoices(voices, this.getConfig().voice));
+            this._voiceComboHandler = (e) => this.setConfig({ voice: e.target.value });
+            this.voiceCombo.addEventListener('change', this._voiceComboHandler);
+            this.synth.onvoiceschanged = () => this.populateVoices(this.synth.getVoices(), this.getConfig().voice);
+            Promise.resolve(this.synth.getVoices())
+                .then(voices => this.populateVoices(voices, this.getConfig().voice))
+                .catch(err => console.error('Failed to load voices:', err));
         }
 
         this.chatWindow = document.getElementById('chat-window');
@@ -197,15 +250,26 @@ export class UIController {
         }
 
         this.chatInput = document.getElementById('chat-input');
-        this.chatInput.addEventListener('keypress', (e) => {
-            if (!(e.ctrlKey || e.altKey || e.shiftKey || e.metaKey) && e.key === 'Enter') this.sendMessage();
-        });
+        if (this.chatInput) {
+            this._chatInputHandler = (e) => {
+                if (!(e.ctrlKey || e.altKey || e.shiftKey || e.metaKey) && e.key === 'Enter') {
+                    this.sendMessage();
+                }
+            };
+            this.chatInput.addEventListener('keypress', this._chatInputHandler);
+        }
 
         this.sendBtn = document.getElementById('send-btn');
-        this.sendBtn.addEventListener('click', () => this.sendMessage());
+        if (this.sendBtn) {
+            this._sendBtnHandler = () => this.sendMessage();
+            this.sendBtn.addEventListener('click', this._sendBtnHandler);
+        }
 
         this.micBtn = document.getElementById('mic-btn');
-        this.micBtn.addEventListener('click', () => this.toggleDictation());
+        if (this.micBtn) {
+            this._micBtnHandler = () => this.toggleDictation();
+            this.micBtn.addEventListener('click', this._micBtnHandler);
+        }
 
         this.setupSpeechRecognition();
 
@@ -213,11 +277,12 @@ export class UIController {
         this.addMessage('system', 'Welcome to OllamaChat! Ask me anything.', 0, Math.floor(Date.now() / 1000));
     }
 
-
     sendMessage() {
-        const text = this.chatInput.value.trim();
-        this.handleSendMessage(text);
-        this.chatInput.value = "";
+        const text = this.chatInput?.value?.trim();
+        if (text && this.handleSendMessage) {
+            this.handleSendMessage(text);
+            this.chatInput.value = "";
+        }
     }
 
     async exportSessionData(jsonData) {
@@ -254,9 +319,9 @@ export class UIController {
             });
 
             try {
-                await this.importData(data);
+                await this.onImportData(data);
             } catch (err) {
-                reject(new Error('Error parsing JSON file.', { cause: err }));
+                throw new Error('Error parsing JSON file.', { cause: err });
             }
 
             alert('Import Successful!');
@@ -268,6 +333,7 @@ export class UIController {
 
     async populateChats(chats = null, currentChat = null) {
         const chatCombo = this.historyCombo;
+        if (!chatCombo) return;
 
         if (chats) {
             chatCombo.length = 0
@@ -291,6 +357,7 @@ export class UIController {
 
     async populateModels(models, currentModel = null) {
         const modelCombo = document.getElementById('model-combo');
+        if (!modelCombo) return;
 
         if (models) {
             modelCombo.length = 0;
@@ -307,6 +374,7 @@ export class UIController {
     }
 
     displayChatHistory(chat) {
+        if (!this.chatWindow) return;
         this.chatWindow.innerHTML = '';
 
         chat?.messages?.forEach((message, i) => {
@@ -317,6 +385,7 @@ export class UIController {
 
     async populateVoices(voices = null, currentVoice = null) {
         const voiceCombo = this.voiceCombo;
+        if (!voiceCombo) return;
 
         if (voices) {
             // Sort by language, then name
@@ -363,19 +432,20 @@ export class UIController {
         voiceCombo.value = currentVoice;
     }
 
-
-
     prepareOutput(content) {
         return DOMPurify.sanitize(marked.parse(content))
     }
 
     scrollToBottom() {
-        this.chatWindow.scrollTop = this.chatWindow.scrollHeight;
+        if (this.chatWindow) {
+            this.chatWindow.scrollTop = this.chatWindow.scrollHeight;
+        }
     }
-
 
     updateMessage(bubbleId, content, className = null) {
         const element = document.getElementById(bubbleId);
+        if (!element) return;
+
         element.innerHTML = content ? this.prepareOutput(content) : "";
 
         if (className) {
@@ -386,6 +456,8 @@ export class UIController {
     }
 
     addMessage(role, text = '', chatId, messageIndex) {
+        if (!this.chatWindow) return null;
+
         const bubbleId = `chat_${chatId}_msg_${messageIndex}`;
         const element = document.createElement('div');
         element.className = `message message-${role}`;
@@ -400,19 +472,20 @@ export class UIController {
 
     addIndicatorMessage(role, chatId, messageIndex) {
         const bubbleId = this.addMessage(role, '', chatId, messageIndex);
+        if (!bubbleId) return null;
+
         const element = document.getElementById(bubbleId);
+        if (!element) return bubbleId;
 
         const indicator = element.appendChild(document.createElement("span"));
         indicator.classList.add("loading-indicator");
 
         // Randomly assign a "mood" to the loading animation
-        const moods = ['globe', 'dice', 'lunar', 'weather-1', 'weather-2', 'clocks', ''];
-        const randomMood = moods[Math.floor(Math.random() * moods.length)];
+        const randomMood = LOADING_MOODS[Math.floor(Math.random() * LOADING_MOODS.length)];
         if (randomMood) indicator.classList.add(randomMood);
 
         return bubbleId
     }
-
 
     setupSpeechRecognition() {
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -425,21 +498,25 @@ export class UIController {
 
             this.recognition.onresult = (event) => {
                 const transcript = event.results[0][0].transcript;
-                this.chatInput.value = transcript;
+                if (this.chatInput) {
+                    this.chatInput.value = transcript;
+                }
                 this.isListening = false;
-                this.micBtn.textContent = '🎤';
-                this.handleSendMessage();
+                this.updateMicButton('🎤');
+                if (this.handleSendMessage) {
+                    this.handleSendMessage(transcript);
+                }
             };
 
             this.recognition.onerror = (event) => {
                 console.error('Speech Recognition Error:', event.error);
                 this.isListening = false;
-                this.micBtn.textContent = '🎤';
+                this.updateMicButton('🎤');
             };
 
             this.recognition.onend = () => {
                 this.isListening = false;
-                this.micBtn.textContent = '🎤';
+                this.updateMicButton('🎤');
             };
         } else {
             console.warn('Web Speech API (Recognition) not supported in this browser.');
@@ -447,6 +524,11 @@ export class UIController {
         }
     }
 
+    updateMicButton(icon) {
+        if (this.micBtn) {
+            this.micBtn.textContent = icon;
+        }
+    }
 
     toggleDictation() {
         if (!this.recognition) return;
@@ -455,7 +537,7 @@ export class UIController {
             this.recognition.stop();
         } else {
             this.isListening = true;
-            this.micBtn.textContent = '🛑';
+            this.updateMicButton('🛑');
             this.recognition.start();
         }
     }
@@ -468,19 +550,15 @@ export class UIController {
      */
     finishMessage(bubbleId) {
         const element = document.getElementById(bubbleId);
+        if (!element) return;
 
         try {
             renderMathInElement(element, {
-                delimiters: [
-                    { left: '$$', right: '$$', display: true },   // Block math
-                    { left: '$', right: '$', display: false },    // Inline math
-                    { left: '\\(', right: '\\)', display: false }, // LaTeX inline
-                    { left: '\\[', right: '\\]', display: true }  // LaTeX block
-                ],
+                delimiters: KATEX_DELIMITERS,
                 throwOnError: false // Prevents the whole app from crashing if there's a typo in math
             });
         } catch (err) {
-            throw new Error("KaTeX rendering error:", { cause: err });
+            console.error("KaTeX rendering error:", err);
         }
 
         try {
@@ -489,8 +567,8 @@ export class UIController {
                 suppressErrors: true
             });
         } catch (err) {
-            throw new Error("Mermaid rendering error:", { cause: err });
-        }        
+            console.error("Mermaid rendering error:", err);
+        }
 
         const speakBtn = document.createElement('button');
         speakBtn.innerHTML = '🔊';
@@ -516,12 +594,13 @@ export class UIController {
         }
     }
 
-
     speakStart(text) {
-        // Remove the "🔊" character from text if it's part of the content
-        // const cleanText = text.replace('🔊', '').trim();
         const utterance = new SpeechSynthesisUtterance(text);
-        utterance.voice = this.synth.getVoices().find((v) => v.name === this.getConfig().voice);
+        const voices = this.synth.getVoices();
+        const selectedVoice = this.getConfig().voice;
+        if (selectedVoice) {
+            utterance.voice = voices.find((v) => v.name === selectedVoice) || voices[0];
+        }
         this.synth.speak(utterance);
     }
 

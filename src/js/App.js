@@ -34,7 +34,7 @@ class App {
             "LmStudioService": LmStudioService
         };        
 
-        if (!engines[engine] {
+        if (!engines[engine]) {
             throw new Error(`Unknown engine: ${engine}`);
         }
 
