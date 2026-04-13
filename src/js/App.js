@@ -11,7 +11,7 @@ class App {
 
         // Initialise config with defaults from package, then immediately update it with what's stored in localStorage
         this.config = packageConfig.config;
-        this.setConfig(JSON.parse(localStorage.getItem(this.configKey) || "{}") || {});
+        this.setConfig(JSON.parse(localStorage.getItem(this.configKey) || "{}"));
 
         this.storage = new StorageService();
         this.ui = new UIController();
@@ -29,15 +29,16 @@ class App {
 
 
     createLlmEngine(engine) {
-        const llm = ((engine === "OllamaService") && new OllamaService())
-            || ((engine === "LmStudioService") && new LmStudioService())
-            || null;
+        const engines = {
+            "OllamaService": OllamaService,
+            "LmStudioService": LmStudioService
+        };        
 
-        if (!llm) {
+        if (!engines[engine] {
             throw new Error(`Unknown engine: ${engine}`);
         }
 
-        return llm;
+        return new engines[engine]();
     }
 
 
@@ -149,7 +150,7 @@ class App {
         // Update chat history combo box (doesn't matter if we don't wait)
         this.ui.populateChats(await this.storage.getAllDataByDate(true), chat.id + '');
 
-        const msgId = chat.messages.push({ role: 'assistant', content: fullAiContent });
+        const msgId = chat.messages.push({ role: 'assistant', content: "" });
         const bubbleId = this.ui.addIndicatorMessage('assistant', chat.id, msgId);
 
         try {
