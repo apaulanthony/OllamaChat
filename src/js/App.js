@@ -136,21 +136,18 @@ class App {
         chat.messages.push(message);
         chat.sessionName = chat.messages[0].content.substring(0, 30) + '...'; // TODO: Get AI to create summary of conversation?       
 
-        // Make sure that falsey ids are properly deleted that we can re-use the same
+        // Make sure that falsey ids are properly deleted as their absence triggers their generation when saving
         if (chat.hasOwnProperty('id') && !chat.id) {
             delete chat.id;
         }
 
         chat.id = await this.storage.saveRecord(chat);
 
-        // Update UI with User Message (immedidately completing it)
+        // Update UI with User Message (immediately completing it)
         this.ui.finishMessage(this.ui.addMessage('user', text, chat.id, chat.messages.length));
 
         // Update chat history combo box (doesn't matter if we don't wait)
         this.ui.populateChats(await this.storage.getAllDataByDate(true), chat.id + '');
-
-
-        let fullAiContent = '';
 
         const msgId = chat.messages.push({ role: 'assistant', content: fullAiContent });
         const bubbleId = this.ui.addIndicatorMessage('assistant', chat.id, msgId);
@@ -164,7 +161,7 @@ class App {
                 const { done, value } = await reader.read();
                 if (done) break;
 
-                this.ui.updateMessage(bubbleId, chat.messages[msgId - 1].content = (fullAiContent += value));
+                this.ui.updateMessage(bubbleId, chat.messages[msgId - 1].content += value);
             }
 
             // Save response to chat history and storage
