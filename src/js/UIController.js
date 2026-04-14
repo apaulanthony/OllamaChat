@@ -280,7 +280,7 @@ export class UIController {
             for (const chat of chats) {
                 const option = document.createElement("option");
                 option.value = chat.id.toString();
-                option.textContent = `${new Date(chat.date)} ${chat.messages[0].content}`;
+                option.textContent = `${new Date(chat.date)} ${chat.sessionName}`;
 
                 chatCombo.add(option);
             }
@@ -511,7 +511,7 @@ export class UIController {
 
         element.insertAdjacentElement('afterend', div);
 
-        if (this.getConfig().autoRead) {
+        if (!element.classList.contains("user") &&  this.getConfig().autoRead) {
             this.speakStart(element.textContent);
         }
     }

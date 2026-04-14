@@ -7,11 +7,11 @@ import { BaseLlmService } from './BaseLlmService.js';
 export class OllamaService extends BaseLlmService {
 
     /**
-     * @param {Array<Object>} messages - The conversation history.
+     * @param {Array<Object>} object.messages - The conversation history.
      * @returns {Promise<ReadableStream>}
      * @throws {Error} If the method is not implemented in a subclass.
      */
-    async chatStream(messages) {
+    async chatStream({ messages }) {
         const { model, baseUrl, think } = this.getConfig();
 
         const body = {
@@ -40,26 +40,41 @@ export class OllamaService extends BaseLlmService {
 
         return new ReadableStream({
             async start(controller) { // Start the stream controller
-                const reader = response.body.getReader();
-                const decoder = new TextDecoder();
+                try {
+                    const hasIterator = window.Iterator && typeof Iterator.prototype.filter === "function" && typeof Iterator.prototype.map === "function" && typeof Iterator.prototype.forEach === "function" ;
+                    const toIterator = a => hasIterator ? Iterator.from(a) : a;
 
-                while (true) {
-                    const { done, value } = await reader.read();
-                    if (done) break;
-
-                    const chunk = decoder.decode(value, { stream: true });
-
-                    // llm can send multiple JSON objects in one chunk sometimes
-                    const lines = chunk.split('\n');
-                    for (const line of lines) {
-                        const json = line.trim() && JSON.parse(line);
-                        if (json?.message?.content) {
-                            controller.enqueue(json.message.content);
-                        }
+                    const reader = response.body.getReader();
+                    const decoder = new TextDecoder();
+    
+                    while (true) {
+                        const { done, value } = await reader.read();
+                        if (done) break;
+    
+                        const chunk = decoder.decode(value, { stream: true });
+    
+                        // llm can send multiple JSON objects in one chunk sometimes
+                        toIterator(chunk.split('\n'))
+                            .map(l => l.trim())
+                            .map(l => {
+                                try {
+                                    return !!l && JSON.parse(l);
+                                } catch (e) {
+                                    // Log the failure but continue processing the stream
+                                    console.error("Failed to parse JSON payload in chunk:", l, e);
+                                    return null;
+                                }
+                            })
+                            .filter(json => !!json)
+                            .forEach(json => {                                
+                                if (json.message?.content) {
+                                    controller.enqueue({ content: json.message.content });
+                                }
+                            });
                     }
+                } finally {
+                    controller.close();
                 }
-                
-                controller.close();            
             }
         });
     }
