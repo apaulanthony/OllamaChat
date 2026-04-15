@@ -13,13 +13,12 @@ export class LmStudioService extends BaseLlmService {
      * @throws {Error} If the method is not implemented in a subclass.
      */
     async chatStream({ messages, response_id = null }) {
-        const { model, baseUrl, think = false, temperature = null, store = false } = this.getConfig();
+        const { model, baseUrl, think = false, temperature = null, store = false, token = null } = this.getConfig();
 
         const body = {
             model: model,
             input: messages.map(m => ({ type: "text", content: m.content })),
             stream: true, // Enable streaming
-            //think: think || false
             //temperature: temperature
             store: store
             //previous_response_id: <response_id>
@@ -38,11 +37,18 @@ export class LmStudioService extends BaseLlmService {
             }
         }
 
+
+        const headers = {
+            'Content-Type': 'application/json',
+        }
+
+        if (token) {
+            headers.Authorization = `Bearer ${token}`
+        }
+
         const response = await fetch(new URL("chat", baseUrl), {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
+            headers: headers,
             body: JSON.stringify(body),
         });
 
@@ -58,7 +64,7 @@ export class LmStudioService extends BaseLlmService {
         return new ReadableStream({
             async start(controller) {
                 try {
-                    const hasIterator = window.Iterator && typeof Iterator.prototype.filter === "function" && typeof Iterator.prototype.map === "function" && typeof Iterator.prototype.forEach === "function" ;
+                    const hasIterator = window.Iterator && typeof Iterator.prototype.filter === "function" && typeof Iterator.prototype.map === "function" && typeof Iterator.prototype.forEach === "function";
                     const toIterator = a => hasIterator ? Iterator.from(a) : a;
 
                     const reader = response.body.getReader();
@@ -107,19 +113,22 @@ export class LmStudioService extends BaseLlmService {
     }
 
     async getAllModels() {
-        const { baseUrl } = this.getConfig();
-        try {
-            const response = await fetch(new URL("models", baseUrl));
-            if (!response.ok) {
-                throw new Error('Failed to fetch models from LLM Studio');
-            }
-            const data = await response.json();
-            return (data.models || []).map(m => ({
-                code: m.key,
-                description: m.display_name
-            }));
-        } catch (e) {
-            throw e;
+        const { baseUrl, token = null} = this.getConfig(); // Get the base URL and token from the configuration
+        const headers = {};
+
+        if (token) {
+            headers.Authorization = `Bearer ${token}`;
         }
+
+        const response = await fetch(new URL("models", baseUrl), { headers: headers });
+        if (!response.ok) {
+            throw new Error('Failed to fetch models from LLM Studio');
+        }
+        
+        const data = await response.json();
+        return (data.models || []).map(m => ({
+            code: m.key,
+            description: m.display_name
+        }));
     }
 }

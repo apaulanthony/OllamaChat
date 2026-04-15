@@ -22,15 +22,17 @@
 				<form id="config-form" method="dialog">
 					<fieldset class="options-container">
 						<label>Host: <input type="text" id="baseUrl-input" name="baseUrl" value=""></label>
-						<label>LLM engine <select id="engine-combo" name="engine"><option value="LmStudioService">LM Studio</option><option value="OllamaService">Ollama</option></select></label>
+						<label>LLM engine <select id="engine-combo" name="engine"></select></label>
+						<label>API Token <input id="token-input" name="token" /></label>
 						<input type="button" id="load-models-button" value="Load" />
 						<label>Models <select id="model-combo" name="model"></select></label>
 						<label>Temperature <input type="number" id="temperature-input" name="temperature" min="0" max="1" step="0.01" /></label>
 						<label>Store chat sessions on server <input type="checkbox" id="store-checkbox" name="store" /></label>
 						<label>Auto read responses <input type="checkbox" id="auto-read-checkbox" name="autoRead"></label>
 						<label>Voices <select id="voice-combo" name="voice"></select></label>
-					</fieldset>    
-					<button>Close</button>
+					</fieldset>
+
+					<button type="submit">Close</button>
 				</form>
 			</dialog>
 			
@@ -38,13 +40,13 @@
 				<legend>Chat History</legend>
 
 				<label>Continue chat session <select id="history-combo"></select></label>								
-				<button id="clear-history-button">Clear All</button>
+				<button type="button" id="clear-history-button">Clear All</button>
 				<div>
 					<div>
 						<label>Import history <input id="import-history" type="file"></label>
-						<button id="import-history-button">Import</button>
+						<button  type="button" id="import-history-button">Import</button>
 					</div>
-					<button id="export-history-button">Export All</button>
+					<button type="button" id="export-history-button">Export All</button>
 				</div>
 			</fieldset>			
 		</div>
@@ -55,10 +57,10 @@
 			</div>	
 
 			<div class="input-area">
-				<button id="mic-btn" title="Dictate">🎤</button>
+				<button type="button" id="mic-btn" title="Dictate">🎤</button>
 				<textarea type="text" id="chat-input" placeholder="Type a message..."></textarea>
-				<input type="file" id="file-input" />
-				<button id="send-btn">Send</button>
+				<label>Attach a file: <input type="file" id="file-input" /></label>
+				<button type="button" id="send-btn">Send</button>
 			</div>		
 		</div>
 	</body>

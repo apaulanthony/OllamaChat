@@ -55,6 +55,8 @@ class App {
         this.ui.getConfig = () => app.getConfig();
         this.ui.setConfig = (config) => app.setConfig(config);
 
+        this.ui.getAllEngines = () => [{ code: "LmStudioService", description: "LM Studio" }, { code: "OllamaService", description: "Ollama" }];
+
         this.ui.onEngineChange = (engine) => {
             app.setConfig({ engine: engine });
             app.llm = app.createLlmEngine(engine);
@@ -112,7 +114,7 @@ class App {
     async handleSendMessage(text) {
         if (!text) return;
 
-        const { store } = this.getConfig();
+        const { store, temperature = 0.7 } = this.getConfig();
 
         const images = null;
         //  await Promise.all(this.fileInput?.files.map(file => new Promise((resolve, reject) => {
@@ -132,7 +134,7 @@ class App {
 
         const chat = this.chat = {
             messages: [],
-            temperature: 0.7,
+            temperature: temperature,
             ...this.chat,
         };
 

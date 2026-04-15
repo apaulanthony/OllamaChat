@@ -12,7 +12,7 @@ export class OllamaService extends BaseLlmService {
      * @throws {Error} If the method is not implemented in a subclass.
      */
     async chatStream({ messages }) {
-        const { model, baseUrl, think } = this.getConfig();
+        const { model, baseUrl, think = false} = this.getConfig();
 
         const body = {
             model: model,
@@ -86,6 +86,7 @@ export class OllamaService extends BaseLlmService {
         if (!response.ok) {
             throw new Error('Failed to fetch models from Ollama');
         }
+        
         const data = await response.json();
         return (data.models || []).map(m => ({
             code: m.model,

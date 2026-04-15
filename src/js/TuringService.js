@@ -1,5 +1,7 @@
-// src/js/TuringService.js
-
+/**
+ *  TuringService.js
+ *  Responsibility: Handles communication with the "Turing" API - in practise a peer-to-peer chat via WebPush.
+ */
 import { BaseLlmService } from './BaseLlmService.js';
 
 export class TuringService extends BaseLlmService {
