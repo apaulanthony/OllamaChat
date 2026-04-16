@@ -32,7 +32,7 @@ class App {
         const engines = {
             "OllamaService": OllamaService,
             "LmStudioService": LmStudioService
-        };        
+        };
 
         if (!engines[engine]) {
             throw new Error(`Unknown engine: ${engine}`);
@@ -54,6 +54,8 @@ class App {
 
         this.ui.getConfig = () => app.getConfig();
         this.ui.setConfig = (config) => app.setConfig(config);
+
+        this.ui.getAllEngines = () => [{ code: "LmStudioService", description: "LM Studio" }, { code: "OllamaService", description: "Ollama" }];
 
         this.ui.onEngineChange = (engine) => {
             app.setConfig({ engine: engine });
@@ -112,6 +114,8 @@ class App {
     async handleSendMessage(text) {
         if (!text) return;
 
+        const { store, temperature = 0.7 } = this.getConfig();
+
         const images = null;
         //  await Promise.all(this.fileInput?.files.map(file => new Promise((resolve, reject) => {
         //         const fr = new FileReader();
@@ -130,7 +134,7 @@ class App {
 
         const chat = this.chat = {
             messages: [],
-            temperature: 0.7,
+            temperature: temperature,
             ...this.chat,
         };
 
@@ -145,27 +149,38 @@ class App {
         chat.id = await this.storage.saveRecord(chat);
 
         // Update UI with User Message (immediately completing it)
-        this.ui.finishMessage(this.ui.addMessage('user', text, chat.id, chat.messages.length));
+        this.ui.finishMessage(this.ui.addMessage(message.role, message.content, chat.id, chat.messages.length));
 
         // Update chat history combo box (doesn't matter if we don't wait)
         this.ui.populateChats(await this.storage.getAllDataByDate(true), chat.id + '');
 
-        const msgId = chat.messages.push({ role: 'assistant', content: "" });
+        let fullContent = "";
+        const msgId = chat.messages.push({ role: 'assistant', content: fullContent });
         const bubbleId = this.ui.addIndicatorMessage('assistant', chat.id, msgId);
 
         try {
-            // Stream from llm
-            const stream = await this.llm.chatStream(chat.messages.slice(0, -1));
+            // Send history  (excluding last empty prompt) t If using a module that has its own copy of history we only need to send our prompt, if 
+            const history = (store && chat.response_id) ? [message] : chat.messages.slice(0, -1);
+
+            const stream = await this.llm.chatStream({ messages: history, response_id: chat.response_id || null });
             const reader = stream.getReader();
 
             while (true) {
                 const { done, value } = await reader.read();
                 if (done) break;
 
-                this.ui.updateMessage(bubbleId, chat.messages[msgId - 1].content += value);
+                if (value.content) {
+                    this.ui.updateMessage(bubbleId, fullContent += value.content);
+                }
+
+                // Capture response_id if it's provided by the server
+                if (value.result) {
+                    chat.response_id = value.result.response_id;
+                }
             }
 
             // Save response to chat history and storage
+            chat.messages[msgId - 1].content = fullContent;
             await this.storage.saveRecord(chat);
 
             // Update UI with final message

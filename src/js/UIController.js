@@ -30,10 +30,12 @@ export class UIController {
         this.getConfig = null;
         this.setConfig = null;
 
-        this.getAllModels = null
-
-        this.onEngineChange = null
+        this.getAllEngines = null;
         this.getComboChatHistoryData = null;
+        
+        this.getAllModels = null;
+        
+        this.onEngineChange = null
         this.onExportData = null;
         this.onImportData = null;
         this.onClearHistory = null;
@@ -43,12 +45,13 @@ export class UIController {
         this.handleSendMessage = null;
 
         // UI Elements
-        this.newChatBtn = null;
         this.historyCombo = null;
         this.clearHistoryBtn = null;
 
         this.baseUrlInput = null;
+        this.tokenInput = null;
         this.loadModelsButton = null;
+        this.engineCombo = null;
         this.modelCombo = null;
         this.chatWindow = null;
         this.chatInput = null;
@@ -112,6 +115,7 @@ export class UIController {
         // Validate all required callbacks
         this.validateCallback(this.getConfig, 'getConfig');
         this.validateCallback(this.setConfig, 'setConfig');
+        this.validateCallback(this.getAllEngines, 'getAllEngines');
         this.validateCallback(this.onEngineChange, 'onEngineChange');
         this.validateCallback(this.getAllModels, 'getAllModels');
         this.validateCallback(this.getComboChatHistoryData, 'getComboChatHistoryData');
@@ -208,6 +212,7 @@ export class UIController {
         }
 
         this.baseUrlInput = document.getElementById('baseUrl-input');
+        this.tokenInput = document.getElementById('token-input');
 
         this.modelCombo = document.getElementById('model-combo');
         if (this.modelCombo) {
@@ -221,24 +226,36 @@ export class UIController {
                 if (this.onEngineChange) this.onEngineChange(e.target.value);
             };
             this.engineCombo.addEventListener('change', this._engineComboHandler);
+
+            Promise.resolve(this.getAllEngines())
+                .then(engines => this.populateEngines(engines, this.getConfig().engine))
+                .catch(err => console.error('Failed to load engines:', err));
         }
 
         this.loadModelsButton = document.getElementById('load-models-button');
         if (this.loadModelsButton) {
-            this.loadModelsButton.addEventListener("click", async () => {
-                if (this.baseUrlInput) {
-                    this.setConfig({ baseUrl: this.baseUrlInput.value });
+            this._loadModelsButtonHandler = async () => {
+                if (this.baseUrlInput && this.tokenInput) {
+                    this.setConfig({ baseUrl: this.baseUrlInput.value, token: this.tokenInput.value  });
                 }
                 const models = await this.getAllModels();
                 this.populateModels(models, this.getConfig().model);
-            });
+            };
+            this.loadModelsButton.addEventListener("click", this_loadModelsButtonHandler);
+
+            Promise.resolve(this.getAllModels())
+                .then(models => this.populateModels(models, this.getConfig().model))
+                .catch(err => console.error('Failed to load models:', err));
         }
 
         this.voiceCombo = document.getElementById('voice-combo');
         if (this.voiceCombo) {
             this._voiceComboHandler = (e) => this.setConfig({ voice: e.target.value });
-            this.voiceCombo.addEventListener('change', this._voiceComboHandler);
-            this.synth.onvoiceschanged = () => this.populateVoices(this.synth.getVoices(), this.getConfig().voice);
+            this.voiceCombo.addEventListener('change', this._voiceComboHandler);            
+
+            this._voicesChangesHandler = () => this.populateVoices(this.synth.getVoices(), this.getConfig().voice);
+            this.synth.onvoiceschanged = this._voicesChangesHandler; // In case voices change            
+
             Promise.resolve(this.synth.getVoices())
                 .then(voices => this.populateVoices(voices, this.getConfig().voice))
                 .catch(err => console.error('Failed to load voices:', err));
@@ -331,6 +348,28 @@ export class UIController {
         }
     }
 
+    async _populateCombo(element, values = null, currentValue = null) {
+        if (!element) return;
+
+        if (values) {
+            element.length = 0
+
+            for (const value of values) {
+                const option = document.createElement("option");
+                option.value = value.code;
+                option.textContent = value.description;
+
+                element.add(option);
+            }
+        }
+
+        element.value = (currentValue || null);
+    }  
+
+    async populateEngines(engines = null, currentEngine = null) {
+        this._populateCombo(this.engineCombo, engines, currentEngine);
+    }    
+
     async populateChats(chats = null, currentChat = null) {
         const chatCombo = this.historyCombo;
         if (!chatCombo) return;
@@ -346,7 +385,7 @@ export class UIController {
             for (const chat of chats) {
                 const option = document.createElement("option");
                 option.value = chat.id.toString();
-                option.textContent = `${new Date(chat.date)} ${chat.messages[0].content}`;
+                option.textContent = `${new Date(chat.date)} ${chat.sessionName}`;
 
                 chatCombo.add(option);
             }
@@ -356,21 +395,7 @@ export class UIController {
     }
 
     async populateModels(models, currentModel = null) {
-        const modelCombo = document.getElementById('model-combo');
-        if (!modelCombo) return;
-
-        if (models) {
-            modelCombo.length = 0;
-
-            for (const model of models) {
-                const option = document.createElement("option");
-                option.value = model.code;
-                option.textContent = model.description;
-                modelCombo.add(option);
-            }
-        }
-
-        modelCombo.value = currentModel
+        this._populateCombo(document.getElementById('model-combo'), models, currentModel);
     }
 
     displayChatHistory(chat) {
@@ -406,7 +431,9 @@ export class UIController {
             voiceCombo.length = 0;
 
             for (const group in groupedVoices) {
-                const optgroup = document.createElement("optgroup");
+                if (!groupedVoices[group]) continue;
+
+                const optgroup = document.createElement("optgroup");                                
                 optgroup.label = groupedVoices[group][0].lang;
 
                 for (const voice of groupedVoices[group]) {
@@ -589,7 +616,7 @@ export class UIController {
 
         element.insertAdjacentElement('afterend', div);
 
-        if (this.getConfig().autoRead) {
+        if (!element.classList.contains("user") &&  this.getConfig().autoRead) {
             this.speakStart(element.textContent);
         }
     }
