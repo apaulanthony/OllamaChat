@@ -17,7 +17,7 @@ export class LmStudioService extends BaseLlmService {
 
         const body = {
             model: model,
-            input: messages.map(m => ({ type: "text", content: m.content })),
+            input: messages.map(m => m.images ? { type: "image", data_url: m.images } : { type: "text", content: m.content }),
             stream: true, // Enable streaming
             //temperature: temperature
             store: store
@@ -92,6 +92,11 @@ export class LmStudioService extends BaseLlmService {
                             .filter(event => !!event)
                             .forEach(event => {
                                 // We're interested in payloads that have both a "type":"message.*" and "content":"<blah>"
+                                if (event.type === "error") {
+                                    throw new Error(`Error in LM Studio: ${event.error}`);
+                                }
+
+                                // We're interested in payloads that have both a "type":"message.*" and "content":"<blah>"
                                 if (event.type?.startsWith("message.") && event.content) {
                                     controller.enqueue({ content: event.content });
                                 }
@@ -113,7 +118,7 @@ export class LmStudioService extends BaseLlmService {
     }
 
     async getAllModels() {
-        const { baseUrl, token = null} = this.getConfig(); // Get the base URL and token from the configuration
+        const { baseUrl, token = null } = this.getConfig(); // Get the base URL and token from the configuration
         const headers = {};
 
         if (token) {
@@ -124,7 +129,7 @@ export class LmStudioService extends BaseLlmService {
         if (!response.ok) {
             throw new Error('Failed to fetch models from LLM Studio');
         }
-        
+
         const data = await response.json();
         return (data.models || []).map(m => ({
             code: m.key,

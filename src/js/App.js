@@ -78,7 +78,7 @@ class App {
 
         this.ui.onClearHistory = () => app.storage.deleteAllData();
 
-        this.ui.handleSendMessage = (text) => app.handleSendMessage(text);
+        this.ui.handleSendMessage = (text, files) => app.handleSendMessage(text, files);
 
         await Promise.resolve(this.ui.init());
 
@@ -111,25 +111,88 @@ class App {
         localStorage.setItem(this.configKey, JSON.stringify(this.config));
     }
 
-    async handleSendMessage(text) {
-        if (!text) return;
+
+    isTextFile(file) {
+        const textMimeTypes = new Set([
+            'text/plain',
+            'text/markdown',
+            'text/html',
+            'application/json',
+            'application/javascript',
+            'application/xml',
+            'application/x-python',
+            'text/csv'
+        ]);
+
+        // 1. The standard check
+        if (file.type.startsWith('text/')) return true;
+
+        // 2. The "Application" text exception check
+        if (textMimeTypes.has(file.type)) return true;
+
+        // 3. Fallback: Check the extension if the MIME type is missing/generic
+        const extension = file.name.split('.').pop().toLowerCase();
+        const textExtensions = ['js', 'py', 'md', 'json', 'sql', 'cpp'];
+        if (textExtensions.includes(extension)) return true;
+
+        return false;
+    }
+
+    isImageFile(file) {
+        // 1. The standard MIME check
+        if (file.type.startsWith('image/')) return true;
+
+        // 2. Fallback to extension check for "mystery" files
+        const validExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'];
+        const fileExtension = file.name.split('.').pop().toLowerCase();
+
+        return validExtensions.includes(fileExtension);
+    }
+
+    async handleSendMessage(text, files = null) {
+        if (!text && !files?.length) return;
 
         const { store, temperature = 0.7 } = this.getConfig();
 
-        const images = null;
-        //  await Promise.all(this.fileInput?.files.map(file => new Promise((resolve, reject) => {
-        //         const fr = new FileReader();
-        //         fr.onerror = e => reject(fr.error);
-        //         fr.onloadend = () => resolve(fr.result);
+        // Process attached files. There can be two kinds, text or images, both need to be serialised 
+        // to dataUri as as first step. Test can be prefixed into the message as embedded links, images 
+        // however have to be sent separately, the precise mechanism left to the LLM engine to implement.
+        let textAttachments = ""
+        const images = [];
 
-        //         fr.readAsDataURL(file);
-        //     }).then(s => s.substring(s.indexOf(",") + 1)))) ;            
+        if (files) {
+            await Promise.all(
+                files.map(file => {
+                    const type = (this.isImageFile(file) && "image") || (this.isTextFile(file) && "text");
+                    if (!type) return Promise.resolve(null); // Skip files we don't recognize
 
-        // if (!text && !images?.length) return;
-
-        const message = { role: 'user' };
-        if (text) message.content = text;
-        if (images) message.images = images;
+                    return new Promise((resolve, reject) => {
+                        const fr = new FileReader();
+                        fr.onerror = e => reject(e);
+                        fr.onloadend = () => resolve({
+                            type: type,
+                            dataUrl: fr.result,
+                            name: file.name
+                        });
+                        fr.readAsDataURL(file);
+                    }).catch(e => {
+                        console.error(`Unable to read ${file.name}`, e);
+                        return null;
+                    })
+                })
+            ).then(payload => {
+                payload.filter(item => !!item).forEach(({ type, dataUrl, name }) => {
+                    if (type === "text") {
+                        //  Text attachment: Use the Markdown link syntax (AIs like md due to requiring fewer tokens to parse)
+                        textAttachments += `[Attachment: ${name}](${dataUrl}) `;
+                        //phrase.push({ role: 'user', type: type, content: `[Attachment: ${name}](${dataUrl})` });
+                    } else if (type === "image") {
+                        // Image attachment: Push as a structured object for indivudal LLM engines to consume in their own manner
+                        images.push({ type: type, data_url: dataUrl });
+                    }
+                });
+            }).catch(e => console.error("File ingestion failed", e));
+        }
 
 
         const chat = this.chat = {
@@ -138,8 +201,18 @@ class App {
             ...this.chat,
         };
 
+        const message = { role: 'user', content: textAttachments + text };
+        
+        if (images && images.length) {
+            message.images = images;
+        }
+
         chat.messages.push(message);
-        chat.sessionName = chat.messages[0].content.substring(0, 30) + '...'; // TODO: Get AI to create summary of conversation?       
+
+        if (!chat.sessionName) {
+            chat.sessionName = message.content.substring(0, 30) + '...'; // TODO: Get AI to create summary of conversation?       
+            //Prompt: "Generate a technical 'folding' summary of this chat in under 100 words, focusing on key entities and architectural decisions, so I can use it as context for a future session"
+        }
 
         // Make sure that falsey ids are properly deleted as their absence triggers their generation when saving
         if (chat.hasOwnProperty('id') && !chat.id) {
@@ -149,7 +222,7 @@ class App {
         chat.id = await this.storage.saveRecord(chat);
 
         // Update UI with User Message (immediately completing it)
-        this.ui.finishMessage(this.ui.addMessage(message.role, message.content, chat.id, chat.messages.length));
+        this.ui.finishMessage(this.ui.addMessage(message.role, message.content, chat.id, chat.messages.length))
 
         // Update chat history combo box (doesn't matter if we don't wait)
         this.ui.populateChats(await this.storage.getAllDataByDate(true), chat.id + '');

@@ -12,11 +12,23 @@ export class OllamaService extends BaseLlmService {
      * @throws {Error} If the method is not implemented in a subclass.
      */
     async chatStream({ messages }) {
-        const { model, baseUrl, think = false} = this.getConfig();
+        const { model, baseUrl, think = false } = this.getConfig();
 
         const body = {
             model: model,
-            messages: messages,
+            messages: messages.map(m => {
+                // Clone to avoid mutating the original chat history in the UI
+                const m2 = { ...m };
+
+                if (m2.images && Array.isArray(m2.images)) {
+                    m2.images = m2.images?.map(imgStr => {
+                        const pos = imgStr.indexOf(",");
+                        return pos >= 0 ? imgStr.slice(pos + 1) : imgStr;
+                    });
+                }
+
+                return m2;
+            }),
             stream: true, // Enable streaming
             think: think || false
         }
@@ -41,18 +53,18 @@ export class OllamaService extends BaseLlmService {
         return new ReadableStream({
             async start(controller) { // Start the stream controller
                 try {
-                    const hasIterator = window.Iterator && typeof Iterator.prototype.filter === "function" && typeof Iterator.prototype.map === "function" && typeof Iterator.prototype.forEach === "function" ;
+                    const hasIterator = window.Iterator && typeof Iterator.prototype.filter === "function" && typeof Iterator.prototype.map === "function" && typeof Iterator.prototype.forEach === "function";
                     const toIterator = a => hasIterator ? Iterator.from(a) : a;
 
                     const reader = response.body.getReader();
                     const decoder = new TextDecoder();
-    
+
                     while (true) {
                         const { done, value } = await reader.read();
                         if (done) break;
-    
+
                         const chunk = decoder.decode(value, { stream: true });
-    
+
                         // llm can send multiple JSON objects in one chunk sometimes
                         toIterator(chunk.split('\n'))
                             .map(l => l.trim())
@@ -66,7 +78,7 @@ export class OllamaService extends BaseLlmService {
                                 }
                             })
                             .filter(json => !!json)
-                            .forEach(json => {                                
+                            .forEach(json => {
                                 if (json.message?.content) {
                                     controller.enqueue({ content: json.message.content });
                                 }
@@ -86,7 +98,7 @@ export class OllamaService extends BaseLlmService {
         if (!response.ok) {
             throw new Error('Failed to fetch models from Ollama');
         }
-        
+
         const data = await response.json();
         return (data.models || []).map(m => ({
             code: m.model,
