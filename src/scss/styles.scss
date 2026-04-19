@@ -300,6 +300,18 @@ dialog {
     margin: 1em;
     margin-top: auto; /* Pushes it to the bottom of the flex container */
     
+    padding: 10px;
+    border: 2px solid transparent;
+    transition: all 0.2s ease-in-out; // Smooth transition for the border change
+    border-radius: 8px;
+
+    // The visual feedback class applied during dragover
+    &.drag-over {
+        background-color: rgba(34, 197, 94, 0.1); // Light green tint (matching your theme)
+        border: 2px dashed #22c55e;
+        transform: scale(1.02); // Subtle "pop" effect
+    }
+
     textarea {
         width: 100%;
         height: 6em;

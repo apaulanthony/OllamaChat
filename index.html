@@ -57,10 +57,12 @@
 			</div>	
 
 			<div class="input-area">
-				<button type="button" id="mic-btn" title="Dictate">🎤</button>
-				<textarea type="text" id="chat-input" placeholder="Type a message..."></textarea>
-				<label>Attach a file: <input type="file" id="file-input" /></label>
-				<button type="button" id="send-btn">Send</button>
+				<form id="chat-form">
+					<button type="button" id="mic-btn" title="Dictate">🎤</button>
+					<textarea type="text" id="chat-input" placeholder="Type a message..."></textarea>
+					<label>Attach a file: <input type="file" id="file-input" accept="text/*,.js,.py,.md,.json,.sql,.cpp,application/json,application/javascript,application/xml,application/x-python,image/*" multiple /></label>
+					<button type="button" id="send-btn">Send</button>
+				</form>
 			</div>		
 		</div>
 	</body>

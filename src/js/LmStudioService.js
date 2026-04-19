@@ -8,7 +8,7 @@ export class LmStudioService extends BaseLlmService {
 
     /**
      * @param {Array<Object>} options.messages - Current converation up to last (user) message.
-     * @param {*} options.response_id - Identifier of existing response to append to
+     * @param {string} options.response_id - Identifier of existing response to append to
      * @returns {Promise<ReadableStream>}
      * @throws {Error} If the method is not implemented in a subclass.
      */
@@ -17,7 +17,7 @@ export class LmStudioService extends BaseLlmService {
 
         const body = {
             model: model,
-            input: messages.map(m => m.images ? { type: "image", data_url: m.images } : { type: "text", content: m.content }),
+            input: messages.flatMap(m => [...(m.images ? m.images.map(m2 => { return { type: "image", data_url: m2.data_url } }) : []), { type: "text", content: m.content }]),
             stream: true, // Enable streaming
             //temperature: temperature
             store: store

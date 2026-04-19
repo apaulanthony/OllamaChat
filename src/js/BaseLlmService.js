@@ -26,7 +26,6 @@ export class BaseLlmService {
      * Sends a chat request to Ollama and returns a ReadableStream for the response body.
      *
      * @param {Array<Object>} object.messages - The conversation history.
-     * @param {*} object.response_id - Identifier of existing response to append to
      * @returns {Promise<ReadableStream>} A ReadableStream or async generator for streaming
      * @throws {Error} If the method is not implemented in a subclass.
      */

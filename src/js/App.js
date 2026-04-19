@@ -69,6 +69,11 @@ class App {
         this.ui.getComboChatHistoryData = (descending = true) => app.storage.getAllDataByDate(descending);
         this.ui.onChatSelected = async (id) => {
             const chat = app.chat = await app.storage.getRecord(id);
+
+            if (!chat) {
+                this.clearChat(); // Clear chat if no matching record found
+            }
+
             chat.messages = chat.messages.filter(m => !!m.content); // Filter empty contents
             app.ui.displayChatHistory(chat);
         };
@@ -78,10 +83,10 @@ class App {
 
         this.ui.onClearHistory = () => app.storage.deleteAllData();
 
+        this.ui.isValidFile = (file) => app.isValidFile(file);
         this.ui.handleSendMessage = (text, files) => app.handleSendMessage(text, files);
 
         await Promise.resolve(this.ui.init());
-
 
         const search = (location.search && new URLSearchParams(location.search)) || null;
         if (search) {
@@ -94,6 +99,15 @@ class App {
 
     getConfig() {
         return this.config;
+    }
+
+
+    clearChat() {
+        this.chat = {
+            //id: null,
+            messages: [] // Conversation history
+        }
+        this.ui.clearChat();        
     }
 
     setConfig(config = {}) {
@@ -149,6 +163,11 @@ class App {
         return validExtensions.includes(fileExtension);
     }
 
+
+    isValidFile(file) {
+        return this.isImageFile(file) || this.isTextFile(file);
+    }
+
     async handleSendMessage(text, files = null) {
         if (!text && !files?.length) return;
 
@@ -202,7 +221,7 @@ class App {
         };
 
         const message = { role: 'user', content: textAttachments + text };
-        
+
         if (images && images.length) {
             message.images = images;
         }
@@ -235,7 +254,7 @@ class App {
             // Send history  (excluding last empty prompt) t If using a module that has its own copy of history we only need to send our prompt, if 
             const history = (store && chat.response_id) ? [message] : chat.messages.slice(0, -1);
 
-            const stream = await this.llm.chatStream({ messages: history, response_id: chat.response_id || null });
+            const stream = await this.llm.chatStream({ messages: history, response_id: chat.response_id || null, images: images });
             const reader = stream.getReader();
 
             while (true) {
