@@ -174,7 +174,7 @@ class App {
         const { store, temperature = 0.7 } = this.getConfig();
 
         // Process attached files. There can be two kinds, text or images, both need to be serialised 
-        // to dataUri as as first step. Test can be prefixed into the message as embedded links, images 
+        // to dataUri as a first step. Test can be prefixed into the message as embedded links, images 
         // however have to be sent separately, the precise mechanism left to the LLM engine to implement.
         let textAttachments = ""
         const images = [];
