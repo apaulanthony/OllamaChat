@@ -28,6 +28,15 @@ dialog {
     }    
 }
 
+.collapsible-fieldset {
+    cursor: pointer;
+    
+    &.collapsed {
+        max-height: 2em; // Height of legend
+        overflow: hidden;
+    }
+}
+
 #options-fieldset {
     margin: 1em;
 }
