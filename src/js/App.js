@@ -1,8 +1,9 @@
-import packageConfig from '../../package.json';
+import packageConfig from '../../package.json' with {type:'json'};
 import { StorageService } from './StorageService.js';
 import { OllamaService } from './OllamaService.js';
 import { LmStudioService } from './LmStudioService.js';
 import { UIController } from './UIController.js';
+import { isTextFile, isImageFile, isValidFile } from './utils/FileValidator.js';
 
 class App {
     constructor() {
@@ -83,7 +84,7 @@ class App {
 
         this.ui.onClearHistory = () => app.storage.deleteAllData();
 
-        this.ui.isValidFile = (file) => app.isValidFile(file);
+        this.ui.isValidFile = (file) => isValidFile(file);
         this.ui.handleSendMessage = (text, files) => app.handleSendMessage(text, files);
 
         await Promise.resolve(this.ui.init());
@@ -126,48 +127,6 @@ class App {
     }
 
 
-    isTextFile(file) {
-        const textMimeTypes = new Set([
-            'text/plain',
-            'text/markdown',
-            'text/html',
-            'application/json',
-            'application/javascript',
-            'application/xml',
-            'application/x-python',
-            'text/csv'
-        ]);
-
-        // 1. The standard check
-        if (file.type.startsWith('text/')) return true;
-
-        // 2. The "Application" text exception check
-        if (textMimeTypes.has(file.type)) return true;
-
-        // 3. Fallback: Check the extension if the MIME type is missing/generic
-        const extension = file.name.split('.').pop().toLowerCase();
-        const textExtensions = ['js', 'py', 'md', 'json', 'sql', 'cpp'];
-        if (textExtensions.includes(extension)) return true;
-
-        return false;
-    }
-
-    isImageFile(file) {
-        // 1. The standard MIME check
-        if (file.type.startsWith('image/')) return true;
-
-        // 2. Fallback to extension check for "mystery" files
-        const validExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'];
-        const fileExtension = file.name.split('.').pop().toLowerCase();
-
-        return validExtensions.includes(fileExtension);
-    }
-
-
-    isValidFile(file) {
-        return this.isImageFile(file) || this.isTextFile(file);
-    }
-
     async handleSendMessage(text, files = null) {
         if (!text && !files?.length) return;
 
@@ -182,7 +141,7 @@ class App {
         if (files) {
             await Promise.all(
                 files.map(file => {
-                    const type = (this.isImageFile(file) && "image") || (this.isTextFile(file) && "text");
+                    const type = (isImageFile(file) && "image") || (isTextFile(file) && "text");
                     if (!type) return Promise.resolve(null); // Skip files we don't recognize
 
                     return new Promise((resolve, reject) => {
