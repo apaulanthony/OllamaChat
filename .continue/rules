@@ -1,0 +1,19 @@
+# Project Overview
+This project appears to be a *web-based application*, specifically a Progressive Web App, that acts as a client interface for interacting with various Large Language Models (LLMs). It is built using modern web technologies: Vite for the build tool, JavaScript for logic, and SCSS for styling.
+
+# Key Components & Functionality
+- LLM Integration: The core functionality seems to revolve around connecting to different local or remote LLM providers. The presence of LmStudioService.js and OllamaService.js suggests support for LM Studio and Ollama, which are popular tools for running local LLMs.
+- *Service Architecture:*
+    - `BaseLlmService.js`: Likely defines the abstract base class or common interface for all LLM services.
+    - `TuringService.js`: Another specialized service, possibly for a specific API or a different type of AI interaction.
+    - `StorageService.js`: Handles data persistence (likely using `localStorage` or `IndexedDB`).
+- *UI & Interaction:*
+    - `UIController.js` and `App.js`: These manage the user interface and the primary application flow.
+    - `sw.js`: A Service Worker is present, which confirms it's designed to work offline or as a PWA.
+- *Diagramming & Visualization:* The dist/ folder contains a significant amount of assets related to various diagram types (e.g., Mermaid, flowcharts, Gantt charts, Sankey diagrams, etc.). This suggests that the application might allow users to generate, visualize, or interact with diagrams using AI-generated content.
+- *Styling:* Uses SCSS for modular styling, with a main styles.scss file.
+
+# Development Environment
+- *Build System:* Vite (indicated by vite.config.js).
+- *Package Management:* Standard `npm` setup (`package.json`, `package-lock.json`).
+- *Deployment:* A `dist/` folder exists for production builds, and a `.github/workflows/` directory suggests automated CI/CD workflows are in place.
