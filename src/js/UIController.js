@@ -45,6 +45,7 @@ export class UIController {
         this.handleSendMessage = null;
 
         // UI Elements
+        this.historyFieldsetContent = null;
         this.historyCombo = null;
         this.clearHistoryBtn = null;
 
@@ -72,10 +73,10 @@ export class UIController {
         this._engineComboHandler = null;
         this._voiceComboHandler = null;
         this._loadModelsButtonHandler = null;
-        
+
         this._dragOverHandler = null;
         this._dropHandler = null;
-        this._dragLeaveHandler = null;        
+        this._dragLeaveHandler = null;
     }
 
     /**
@@ -99,11 +100,11 @@ export class UIController {
             this.inputArea.removeEventListener('dragover', this._dragOverHandler);
             this.inputArea.removeEventListener('dragleave', this._dragLeaveHandler);
             this.inputArea.removeEventListener('drop', this._dropHandler);
-        }     
+        }
 
         this.chatInput?.removeEventListener('keypress', this._chatInputHandler);
         this.sendBtn?.removeEventListener('click', this._sendBtnHandler);
-           
+
         this.micBtn?.removeEventListener('click', this._micBtnHandler);
         this.clearHistoryBtn?.removeEventListener('click', this._clearHistoryHandler);
         this.exportHistoryButton?.removeEventListener('click', this._exportHistoryHandler);
@@ -142,9 +143,9 @@ export class UIController {
         this.validateCallback(this.onImportData, 'onImportData');
         this.validateCallback(this.onClearHistory, 'onClearHistory');
         this.validateCallback(this.handleSendMessage, 'handleSendMessage');
-        this.validateCallback(this.isValidFile, 'isValidFile');        
+        this.validateCallback(this.isValidFile, 'isValidFile');
 
-        this.configDialog = document.getElementById('configDialog');        
+        this.configDialog = document.getElementById('configDialog');
         if (this.configDialog) {
             const getDialogConfig = () => {
                 const config = {};
@@ -173,6 +174,11 @@ export class UIController {
                 this.configDialog.showModal();
             };
             this.showConfigDialog.addEventListener('click', this._showConfigDialogHandler);
+        }
+
+        this.historyFieldsetContent = this.historyCombo = document.getElementById('history-content');
+        if (this.historyFieldsetContent) {
+            this.historyFieldsetContent.addEventListener("click", () => this.classList.toggle("collapsed"));
         }
 
         this.historyCombo = document.getElementById('history-combo');
@@ -292,7 +298,7 @@ export class UIController {
                 }
             };
             this.chatInput.addEventListener('keypress', this._chatInputHandler);
-        }       
+        }
 
         this.sendBtn = document.getElementById('send-btn');
         if (this.sendBtn) {
@@ -320,7 +326,7 @@ export class UIController {
 
                 if (fileItems.some((item) => this.isValidFile(item))) {
                     this.inputArea.classList.add('drag-over');
-                }                                
+                }
             };
 
             // 3. Define the dragleave handler: Remove visual feedback when leaving
@@ -342,7 +348,7 @@ export class UIController {
                 // if (files.length > 0 && this.handleSendMessage) {
                 //     // Grab current text from the input area if any exists
                 //     const text = this.chatInput?.value?.trim() || "";
-                    
+
                 //     // Trigger the same logic used for the Send button
                 //     await this.handleSendMessage(text, files);
                 //     this.resetInputs(); // Clear the textarea after drop
@@ -353,11 +359,11 @@ export class UIController {
             this.inputArea.addEventListener('dragover', this._dragOverHandler);
             this.inputArea.addEventListener('dragleave', this._dragLeaveHandler);
             this.inputArea.addEventListener('drop', this._dropHandler);
-        }        
-        
+        }
+
         this.setupSpeechRecognition();
         this.clearChat();
-    }    
+    }
 
     disableInputs() {
         this.chatInput.disabled = true;
@@ -368,6 +374,7 @@ export class UIController {
     resetInputs() {
         this.chatInput.value = "";
         this.fileInput.value = null
+
         this.chatInput.disabled = false;
         this.fileInput.disabled = false;
         this.sendBtn.disabled = false;
@@ -376,8 +383,8 @@ export class UIController {
 
     clearChat() {
         this.chatWindow.innerHTML = "";
-        this.resetInputs();      
-        
+        this.resetInputs();
+
         // Use 0 for system chat (invalid as a real chatId) and calculate a message ID based upon a timestamp.
         this.addMessage('system', 'Welcome to OllamaChat! Ask me anything.', 0, Math.floor(Date.now() / 1000));
     }
@@ -387,7 +394,14 @@ export class UIController {
         const files = this.fileInput?.files && Array.prototype.slice.call(this.fileInput.files);
         if (text || files) {
             this.disableInputs();
+
+            // Clear the inputs immediately so they look "sent"
+            // this.chatInput.value = "";
+            // this.fileInput.value = null;
+
             await this.handleSendMessage(text || '', files || null);
+
+            // Re-enable inputs once the request is finished
             this.resetInputs();
         }
     }

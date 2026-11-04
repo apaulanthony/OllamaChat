@@ -8,7 +8,7 @@
 		<link rel="manifest" href="manifest.json" />
 		<link rel="apple-touch-icon" href="icon-192.png" />
 		<title>🦙 OllamaChat</title>
-		<script type="module" crossorigin src="./assets/index-BAzpRrdu.js"></script>
+		<script type="module" crossorigin src="./assets/index-B5S-bnG9.js"></script>
 		<link rel="modulepreload" crossorigin href="./assets/rolldown-runtime-pP25SEvz.js">
 		<link rel="modulepreload" crossorigin href="./assets/chunk-Y2CYZVJY-DsF7k-Jl.js">
 		<link rel="modulepreload" crossorigin href="./assets/d3-selection-BD4snsQe.js">
@@ -22,7 +22,7 @@
 		<link rel="modulepreload" crossorigin href="./assets/rough.esm-Dy-Kn_BL.js">
 		<link rel="modulepreload" crossorigin href="./assets/chunk-AXFCVDMN-DtyriVpk.js">
 		<link rel="modulepreload" crossorigin href="./assets/chunk-LEVMRMFU-Cjd47btT.js">
-		<link rel="stylesheet" crossorigin href="./assets/index-BSGYOwd3.css">
+		<link rel="stylesheet" crossorigin href="./assets/index-Aqx5mSF5.css">
 	</head>
 	<body>
 		<div class="header-container">
@@ -52,14 +52,16 @@
 			<fieldset>
 				<legend>Chat History</legend>
 
-				<label>Continue chat session <select id="history-combo"></select></label>								
-				<button type="button" id="clear-history-button">Clear All</button>
-				<div>
+				<div id="history-content" class="fieldset-content">
+					<label>Continue chat session <select id="history-combo"></select></label>								
+					<button type="button" id="clear-history-button">Clear All</button>
 					<div>
-						<label>Import history <input id="import-history" type="file"></label>
-						<button  type="button" id="import-history-button">Import</button>
+						<div>
+							<label>Import history <input id="import-history" type="file"></label>
+							<button  type="button" id="import-history-button">Import</button>
+						</div>
+						<button type="button" id="export-history-button">Export All</button>
 					</div>
-					<button type="button" id="export-history-button">Export All</button>
 				</div>
 			</fieldset>			
 		</div>
