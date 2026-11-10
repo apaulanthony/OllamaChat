@@ -1,5 +1,5 @@
 import QRCode from 'qrcode';
-import jsQR from 'jsqr';
+import {Html5QrcodeScanner} from "html5-qrcode";
 
 export class QrCodeService {
     /**
@@ -8,9 +8,9 @@ export class QrCodeService {
      * @param {Object} options - Configuration options for generation (e.g., size, margin).
      * @returns {Promise<string>} - A promise that resolves to a Base64 data URL of the QR code.
      */
-    async generate(data, options = {}) {    
+    generate(data, options = {}) {    
         try {
-            return await QRCode.toDataURL(data, options);
+            return QRCode.toDataURL(data, options);
         } catch (error) {
             console.error("QR Code generation failed:", error);
             throw error;
@@ -18,32 +18,36 @@ export class QrCodeService {
     }
 
     /**
-     * Extracts data from an image/video frame.
-     * Used when the user scans a QR code with their camera.
-     * @param {HTMLVideoElement|HTMLImageElement} mediaElement
+     * Scanning using the camera or selecting an image from the file systema.
+     * @param {readerId} ID to div element to render the camera feed.
      * @returns {string|Object|null} The parsed data, raw string, or null.
      */
-    parse(mediaElement) {
-        // Uses 'jsqr' library
-        const context = mediaElement.getContext('2d');
-        const imageData = context.getImageData(0, 0, mediaElement.videoWidth, mediaElement.videoHeight);
+    async parse(readerId) {        
+        return new Promise( (resolve, reject) => {
+            const html5QrcodeScanner = new Html5QrcodeScanner(
+                readerId,
+                { fps: 10, qrbox: {width: 250, height: 250} },
+                /* verbose= */ false
+            );
+    
+            const onScanSuccess = (decodedText, decodedResult) => {
+                // Stop the scanner immediately to release the camera
+                html5QrcodeScanner.clear()
+                    .then(() => {
+                        resolve(decodedText);
+                    })
+                    .catch(err => {
+                        reject(err);
+                    });
+            };
+    
+            // CRITICAL: Do NOT pass 'reject' here. 
+            // This fires constantly on frames without QR codes.
+            const onScanError = (err) => {
+                // Optional: console.warn(`Code scan error = ${err}`);
+            };        
 
-        // Ensure mediaElement is a canvas/video that supports getContext
-        if (!context) {
-            console.error("mediaElement must be a context-enabled canvas or video element.");
-            return null;
-        }
-
-        const code = jsQR(imageData.data, imageData.width, imageData.height);
-
-        if (code) {
-            try {
-                // If it's a VAPID subscription, it's likely JSON
-                return JSON.parse(code.data);
-            } catch {
-                return code.data;
-            }
-        }
-        return null;
+            html5QrcodeScanner.render(onScanSuccess, onScanError);
+        });
     }
 }
