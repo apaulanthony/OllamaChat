@@ -386,7 +386,7 @@ export class UIController {
         this.resetInputs();
 
         // Use 0 for system chat (invalid as a real chatId) and calculate a message ID based upon a timestamp.
-        this.addMessage('system', 'Welcome to OllamaChat! Ask me anything.', 0, Math.floor(Date.now() / 1000));
+        this.addMessage('system', `Welcome to OllamaChat (v${__APP_VERSION__})! Ask me anything.`, 0, Math.floor(Date.now() / 1000));
     }
 
     async sendMessage() {
