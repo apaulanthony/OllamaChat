@@ -56,17 +56,13 @@ export class OllamaService extends BaseLlmService {
                     const hasIterator = window.Iterator && typeof Iterator.prototype.filter === "function" && typeof Iterator.prototype.map === "function" && typeof Iterator.prototype.forEach === "function";
                     const toIterator = a => hasIterator ? Iterator.from(a) : a;
 
-                    const reader = response.body.getReader();
                     const decoder = new TextDecoder();
 
-                    while (true) {
-                        const { done, value } = await reader.read();
-                        if (done) break;
-
-                        const chunk = decoder.decode(value, { stream: true });
+                    for await (const chunk of response.body) {
+                        const text = decoder.decode(chunk, { stream: true });
 
                         // llm can send multiple JSON objects in one chunk sometimes
-                        toIterator(chunk.split('\n'))
+                        toIterator(text.split('\n'))
                             .map(l => l.trim())
                             .map(l => {
                                 try {
